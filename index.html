@@ -474,11 +474,12 @@ legend{padding:0 6px;font-size:12px;font-weight:600;color:var(--accent);letter-s
   }
 
   /* ---------- metas do mês: dinheiro novo e entrada efetiva ---------- */
-  var NIV = ['Meta I','Meta II','Meta III','Superação I','Superação II'];
-  var NIVC = ['I','II','III','S I','S II'];
+  var NIV = ['Meta I','Meta II','Meta III','Meta III Departamento','Superação I','Superação II'];
+  var ORD = [0,1,2,5,3,4]; /* posição guardada de cada nível mostrado (Meta III Departamento é a 6ª guardada) */
+  var NIVC = ['I','II','III','III D','S I','S II'];
   function niveisDe(tipo){
     var m=metas[mes], arr=(m&&m[tipo])||[], r=[];
-    for(var i=0;i<5;i++) r.push(num(arr[i]));
+    for(var i=0;i<6;i++) r.push(num(arr[ORD[i]]));
     return r;
   }
   function cardNiveis(tipo,titulo,sub,atual,agend){
@@ -492,7 +493,7 @@ legend{padding:0 6px;font-size:12px;font-weight:600;color:var(--accent);letter-s
       return h+'</div><div class="actions"><button type="button" id="niv-cancelar">Cancelar</button><button type="button" class="primary" id="niv-salvar" data-tipo="'+tipo+'">Salvar níveis</button></div>';
     }
     h+='<div class="nv-top"><span class="nv-big">'+fmt(atual)+'</span><button type="button" class="mini" data-niv-edit="'+tipo+'">'+(def?'Editar níveis':'Definir níveis')+'</button></div><p class="nv-agend">Agendado (aguardando pagamento): <b>'+fmt(agend||0)+'</b>, fora do progresso</p>';
-    if(!def) return h+'<p class="vazio">Defina Meta I, II, III, Superação I e II para ver o progresso de '+esc(mesNome(mes))+'.</p>';
+    if(!def) return h+'<p class="vazio">Defina Meta I, II, III, Meta III Departamento, Superação I e II para ver o progresso de '+esc(mesNome(mes))+'.</p>';
     var max=Math.max.apply(null,v.concat([atual])), pct=Math.max(0,Math.min(100,atual/max*100));
     var marc='';
     v.forEach(function(x,i){ if(x>0){var l=(x/max*100).toFixed(1); marc+='<span class="nv-tick" style="left:'+l+'%"></span><span class="nv-lab" style="left:'+l+'%">'+NIVC[i]+'</span>'} });
@@ -836,7 +837,7 @@ legend{padding:0 6px;font-size:12px;font-weight:600;color:var(--accent);letter-s
   }
   async function salvarNiveis(tipo){
     if(!db||mes==='todos') return;
-    var arr=[]; for(var i=0;i<5;i++){var el=$('nv-'+tipo+'-'+i); arr.push(el?num(el.value):0)}
+    var arr=[0,0,0,0,0,0]; for(var i=0;i<6;i++){var el=$('nv-'+tipo+'-'+i); arr[ORD[i]]=el?num(el.value):0}
     var novo=Object.assign({},metas[mes]||{}); novo[tipo]=arr;
     try{ await db.collection(CFG).doc('niveis-'+mes).set(novo) }
     catch(e){ toast(erroDb(e,'salvar os níveis')); return }
