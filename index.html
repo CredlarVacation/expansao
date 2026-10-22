@@ -84,6 +84,7 @@ select option{background:var(--surface-solid);color:var(--fg)}
 .nv-tick{position:absolute;top:-3px;width:2px;height:20px;background:var(--fg);opacity:.55;transform:translateX(-1px);border-radius:1px}
 .nv-lab{position:absolute;top:20px;transform:translateX(-50%);font-size:11px;color:var(--muted);font-weight:600;white-space:nowrap}
 .nv-resumo{font-size:13px;margin:0 0 12px}
+.nv-agend{font-size:13px;color:var(--muted);margin:2px 0 12px}.nv-agend b{color:var(--text,inherit)}
 .nv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
 .nv-item{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--field);display:flex;flex-direction:column;gap:4px;min-width:0}
 .nv-item .n{font-size:12px;color:var(--muted);font-weight:600}
@@ -402,6 +403,8 @@ legend{padding:0 6px;font-size:12px;font-weight:600;color:var(--accent);letter-s
   function curta(iso){ if(!iso) return ''; var p=iso.split('-'); return p[2]+'/'+p[1] }
   function mesDe(iso){return (iso||'').slice(0,7)}
   function refData(r){return r.pagamento||r.aceite||''}
+  function recebido(r){return r.estagio!=='aguardando'}
+  function agendado(r){return r.estagio==='aguardando'}
   var NOMES=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
   function mesNome(ym){var p=ym.split('-'); return NOMES[parseInt(p[1],10)-1]+' de '+p[0]}
   function mesCurto(ym){var p=ym.split('-'); return NOMES[parseInt(p[1],10)-1].slice(0,3)+'/'+p[0].slice(2)}
@@ -457,17 +460,17 @@ legend{padding:0 6px;font-size:12px;font-weight:600;color:var(--accent);letter-s
 
   /* ---------- indicadores ---------- */
   function renderKpis(rows){
-    var up=somaMeta(rows.filter(function(r){return r.tratativa==='upgrade'}));
-    var re=somaMeta(rows.filter(function(r){return r.tratativa==='reativacao'}));
-    var tr=somaMeta(rows.filter(function(r){return r.tratativa==='troca'}));
-    var ve=somaMeta(rows.filter(function(r){return r.tratativa==='venda'}));
-    var ag=rows.filter(function(r){return r.estagio==='aguardando'});
+    var rec=rows.filter(recebido), agd=rows.filter(agendado);
+    var up=somaMeta(rec.filter(function(r){return r.tratativa==='upgrade'}));
+    var re=somaMeta(rec.filter(function(r){return r.tratativa==='reativacao'}));
+    var tr=somaMeta(rec.filter(function(r){return r.tratativa==='troca'}));
+    var ve=somaMeta(rec.filter(function(r){return r.tratativa==='venda'}));
     var lan=rows.filter(function(r){return r.estagio==='lancado'}).length;
     $('kpis').innerHTML =
-      '<div class="card kpi hero"><span class="k">Dinheiro novo</span><span class="v">'+fmt(somaMeta(rows))+'</span><span class="n">Upgrade '+compacto(up)+' · Reativação '+compacto(re)+' · Troca '+compacto(tr)+' · Nova venda '+compacto(ve)+'</span></div>'+
-      '<div class="card kpi"><span class="k">Entrada efetiva</span><span class="v">'+fmt(somaEntrada(rows))+'</span><span class="n">Tudo que foi recebido</span></div>'+
+      '<div class="card kpi hero"><span class="k">Dinheiro novo recebido</span><span class="v">'+fmt(somaMeta(rec))+'</span><span class="n">Upgrade '+compacto(up)+' · Reativação '+compacto(re)+' · Troca '+compacto(tr)+' · Nova venda '+compacto(ve)+'</span><span class="n">Agendado: <b>'+fmt(somaMeta(agd))+'</b></span></div>'+
+      '<div class="card kpi"><span class="k">Entrada efetiva recebida</span><span class="v">'+fmt(somaEntrada(rec))+'</span><span class="n">Agendado: <b>'+fmt(somaEntrada(agd))+'</b></span></div>'+
       '<div class="card kpi"><span class="k">Negociações</span><span class="v">'+rows.length+'</span><span class="n">'+plural(lan,'lançada','lançadas')+' no sistema</span></div>'+
-      '<div class="card kpi"><span class="k">Aguardando pagamento</span><span class="v">'+ag.length+'</span><span class="n">'+fmt(somaMeta(ag))+' de meta parada</span></div>';
+      '<div class="card kpi"><span class="k">Aguardando pagamento</span><span class="v">'+agd.length+'</span><span class="n">'+fmt(somaMeta(agd))+' de meta · '+fmt(somaEntrada(agd))+' de entrada</span></div>';
   }
 
   /* ---------- metas do mês: dinheiro novo e entrada efetiva ---------- */
@@ -478,7 +481,7 @@ legend{padding:0 6px;font-size:12px;font-weight:600;color:var(--accent);letter-s
     for(var i=0;i<5;i++) r.push(num(arr[i]));
     return r;
   }
-  function cardNiveis(tipo,titulo,sub,atual){
+  function cardNiveis(tipo,titulo,sub,atual,agend){
     var v=niveisDe(tipo), def=v.some(function(x){return x>0});
     var h='<div class="hd"><h2>'+esc(titulo)+'</h2><span class="sm">'+esc(sub)+'</span></div>';
     if(editNiveis===tipo){
@@ -488,7 +491,7 @@ legend{padding:0 6px;font-size:12px;font-weight:600;color:var(--accent);letter-s
       });
       return h+'</div><div class="actions"><button type="button" id="niv-cancelar">Cancelar</button><button type="button" class="primary" id="niv-salvar" data-tipo="'+tipo+'">Salvar níveis</button></div>';
     }
-    h+='<div class="nv-top"><span class="nv-big">'+fmt(atual)+'</span><button type="button" class="mini" data-niv-edit="'+tipo+'">'+(def?'Editar níveis':'Definir níveis')+'</button></div>';
+    h+='<div class="nv-top"><span class="nv-big">'+fmt(atual)+'</span><button type="button" class="mini" data-niv-edit="'+tipo+'">'+(def?'Editar níveis':'Definir níveis')+'</button></div><p class="nv-agend">Agendado (aguardando pagamento): <b>'+fmt(agend||0)+'</b>, fora do progresso</p>';
     if(!def) return h+'<p class="vazio">Defina Meta I, II, III, Superação I e II para ver o progresso de '+esc(mesNome(mes))+'.</p>';
     var max=Math.max.apply(null,v.concat([atual])), pct=Math.max(0,Math.min(100,atual/max*100));
     var marc='';
@@ -514,8 +517,8 @@ legend{padding:0 6px;font-size:12px;font-weight:600;color:var(--accent);letter-s
     if(mes==='todos'){
       c.innerHTML='<div class="card" style="grid-column:1/-1"><div class="hd"><h2>Metas do mês</h2></div><p class="sm" style="margin:0">Escolha um mês específico para acompanhar Meta I, II, III e as Superações.</p></div>'; return;
     }
-    c.innerHTML='<div class="card">'+cardNiveis('novo','Dinheiro novo','Meta contada no mês',somaMeta(rows))+'</div>'+
-      '<div class="card">'+cardNiveis('entrada','Entrada efetiva','Tudo que foi recebido no mês',somaEntrada(rows))+'</div>';
+    c.innerHTML='<div class="card">'+cardNiveis('novo','Dinheiro novo','Recebido no mês',somaMeta(rows.filter(recebido)),somaMeta(rows.filter(agendado)))+'</div>'+
+      '<div class="card">'+cardNiveis('entrada','Entrada efetiva','Recebido no mês',somaEntrada(rows.filter(recebido)),somaEntrada(rows.filter(agendado)))+'</div>';
     if(forcar){var f=c.querySelector('input'); if(f) f.focus()}
   }
 
@@ -535,13 +538,13 @@ legend{padding:0 6px;font-size:12px;font-weight:600;color:var(--accent);letter-s
   }
   function renderTrat(rows){
     var ks=['upgrade','reativacao','troca','venda'], cores=['var(--s1)','var(--s2)','var(--s3)','var(--s4)'];
-    var info=ks.map(function(k){var rr=rows.filter(function(r){return r.tratativa===k}); return {k:k,n:rr.length,m:somaMeta(rr)}});
+    var info=ks.map(function(k){var rr=rows.filter(function(r){return r.tratativa===k}), rc=rr.filter(recebido); return {k:k,n:rc.length,m:somaMeta(rc),a:somaMeta(rr.filter(agendado))}});
     var max=Math.max.apply(null,info.map(function(i){return Math.max(0,i.m)}))||1;
-    var h='<div class="hd"><h2>Meta por tratativa</h2><span class="sm">Valor que conta na meta</span></div><div class="fn">';
+    var h='<div class="hd"><h2>Meta por tratativa</h2><span class="sm">Recebido que conta na meta</span></div><div class="fn">';
     info.forEach(function(i,ix){
       h+='<div class="fn-row"><div class="fn-h"><span>'+TRAT[i.k]+'</span><b>'+compacto(i.m)+'</b></div>'+
         '<div class="bar" title="'+esc(TRAT[i.k])+': '+esc(fmt(i.m))+'"><i style="width:'+(i.m>0?(i.m/max*100).toFixed(1):0)+'%;background:'+cores[ix]+'"></i></div>'+
-        '<span class="sm">'+plural(i.n,'negociação','negociações')+' · '+fmt(i.m)+'</span></div>';
+        '<span class="sm">'+plural(i.n,'recebida','recebidas')+' · '+fmt(i.m)+(i.a?' · agendado '+fmt(i.a):'')+'</span></div>';
     });
     $('c-trat').innerHTML=h+'</div>';
     return info;
@@ -552,6 +555,7 @@ legend{padding:0 6px;font-size:12px;font-weight:600;color:var(--accent);letter-s
     return (m<=1?1:m<=2?2:m<=5?5:10)*p;
   }
   function serieEvolucao(rows){
+    rows=rows.filter(recebido);
     var pts=[], dom=0;
     if(mes==='todos'){
       var g={}; rows.forEach(function(r){var k=mesDe(refData(r)); if(k) g[k]=(g[k]||0)+meta(r)});
@@ -570,7 +574,7 @@ legend{padding:0 6px;font-size:12px;font-weight:600;color:var(--accent);letter-s
   function renderEvol(rows){
     var s=serieEvolucao(rows), pts=s.pts, n=s.dom;
     var tem=pts.some(function(p){return p.v!==0});
-    var h='<div class="hd"><h2>Evolução da meta</h2><span class="sm">'+(mes==='todos'?'Meta acumulada por mês':'Meta acumulada por dia do pagamento')+'</span></div>';
+    var h='<div class="hd"><h2>Evolução da meta</h2><span class="sm">'+(mes==='todos'?'Recebido acumulado por mês':'Recebido acumulado por dia do pagamento')+'</span></div>';
     if(!pts.length||!tem){
       $('c-evol').innerHTML=h+'<p class="vazio">Sem negociações com valor de meta neste período. Cadastre uma negociação para ver a curva.</p>'; return s;
     }
