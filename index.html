@@ -224,7 +224,7 @@ legend{padding:0 6px;font-size:12px;font-weight:600;color:var(--accent);letter-s
       <legend>Negociação</legend>
       <div class="grid2">
         <label class="f" for="f-aceite">Data do aceite<input id="f-aceite" type="date" required></label>
-        <label class="f" for="f-pag">Data do pagamento<input id="f-pag" type="date"></label>
+        <label class="f" for="f-pag">Data do pagamento (agendada ou recebida)<input id="f-pag" type="date"></label>
         <label class="f" for="f-trat">Tratativa
           <select id="f-trat">
             <option value="upgrade">Upgrade</option>
@@ -801,7 +801,7 @@ legend{padding:0 6px;font-size:12px;font-weight:600;color:var(--accent);letter-s
     ev.preventDefault();
     if(!db){toast('Sem conexão com o armazenamento.');return}
     var d=lerForm(); $('salvar').disabled=true;
-    if(d.estagio==='aguardando') d.pagamento=''; else if(!d.pagamento) d.pagamento=hojeISO();
+    if(d.estagio!=='aguardando' && !d.pagamento) d.pagamento=hojeISO();
     try{
       if(editId){
         var atual=dados.filter(function(x){return x._id===editId})[0]||{};
@@ -820,7 +820,7 @@ legend{padding:0 6px;font-size:12px;font-weight:600;color:var(--accent);letter-s
   }
   async function mudarEstagio(id,v){
     var atual=dados.filter(function(x){return x._id===id})[0]; if(!atual||!db) return;
-    try{ await db.collection(COL).doc(id).set(Object.assign({},semId(atual),{estagio:v,pagamento:(v==='aguardando'?'':(atual.pagamento||hojeISO()))})); toast('Estágio atualizado') }
+    try{ await db.collection(COL).doc(id).set(Object.assign({},semId(atual),{estagio:v,pagamento:(v==='aguardando'?(atual.pagamento||''):(atual.estagio==='aguardando'?hojeISO():(atual.pagamento||hojeISO())))})); toast('Estágio atualizado') }
     catch(e){toast(erroDb(e,'atualizar o estágio'))}
   }
   async function contatoFeito(id){
