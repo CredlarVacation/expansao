@@ -180,7 +180,7 @@ legend{padding:0 6px;font-size:12px;font-weight:600;color:var(--accent);letter-s
       </div>
     </div>
     <div class="controls">
-      <label class="f" for="mes">Mês do aceite
+      <label class="f" for="mes">Mês do pagamento
         <select id="mes"></select>
       </label>
       <button class="primary" id="nova" type="button">Nova negociação</button>
@@ -223,6 +223,7 @@ legend{padding:0 6px;font-size:12px;font-weight:600;color:var(--accent);letter-s
       <legend>Negociação</legend>
       <div class="grid2">
         <label class="f" for="f-aceite">Data do aceite<input id="f-aceite" type="date" required></label>
+        <label class="f" for="f-pag">Data do pagamento<input id="f-pag" type="date"></label>
         <label class="f" for="f-trat">Tratativa
           <select id="f-trat">
             <option value="upgrade">Upgrade</option>
@@ -259,7 +260,7 @@ legend{padding:0 6px;font-size:12px;font-weight:600;color:var(--accent);letter-s
 
     <fieldset id="bloco-reativacao">
       <legend>Reativação</legend>
-      <label class="f" for="f-pantigo">Produto antigo<input id="f-pantigo" type="text"></label>
+      <label class="f" for="f-pantigo">Produto novo<input id="f-pantigo" type="text"></label>
       <label class="f" for="f-vreat">Valor total do produto (R$)<input id="f-vreat" type="text" inputmode="decimal" placeholder="0,00"></label>
       <div class="calc"><span>Valor que conta na meta</span><b id="calc-re">R$ 0,00</b></div>
     </fieldset>
@@ -400,6 +401,7 @@ legend{padding:0 6px;font-size:12px;font-weight:600;color:var(--accent);letter-s
   function dataBR(iso){ if(!iso) return ''; var p=iso.split('-'); return p.length===3?p[2]+'/'+p[1]+'/'+p[0]:iso }
   function curta(iso){ if(!iso) return ''; var p=iso.split('-'); return p[2]+'/'+p[1] }
   function mesDe(iso){return (iso||'').slice(0,7)}
+  function refData(r){return r.pagamento||r.aceite||''}
   var NOMES=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
   function mesNome(ym){var p=ym.split('-'); return NOMES[parseInt(p[1],10)-1]+' de '+p[0]}
   function mesCurto(ym){var p=ym.split('-'); return NOMES[parseInt(p[1],10)-1].slice(0,3)+'/'+p[0].slice(2)}
@@ -431,8 +433,8 @@ legend{padding:0 6px;font-size:12px;font-weight:600;color:var(--accent);letter-s
   function mostrarErro(t){var e=$('erro'); e.textContent=t; e.hidden=!t}
 
   function filtrados(){
-    return dados.filter(function(r){return mes==='todos' || mesDe(r.aceite)===mes})
-      .sort(function(a,b){return (b.aceite||'').localeCompare(a.aceite||'') || (b.criadoEm||0)-(a.criadoEm||0)});
+    return dados.filter(function(r){return mes==='todos' || mesDe(refData(r))===mes})
+      .sort(function(a,b){return refData(b).localeCompare(refData(a)) || (b.criadoEm||0)-(a.criadoEm||0)});
   }
   function daAba(rows,a){
     if(a==='geral') return rows;
@@ -444,7 +446,7 @@ legend{padding:0 6px;font-size:12px;font-weight:600;color:var(--accent);letter-s
 
   function renderMeses(){
     var set={}, atual=hojeISO().slice(0,7); set[atual]=1;
-    dados.forEach(function(r){if(r.aceite) set[mesDe(r.aceite)]=1});
+    dados.forEach(function(r){if(refData(r)) set[mesDe(refData(r))]=1});
     var lista=Object.keys(set).sort().reverse();
     if(mes===null) mes=atual;
     var h='';
@@ -552,7 +554,7 @@ legend{padding:0 6px;font-size:12px;font-weight:600;color:var(--accent);letter-s
   function serieEvolucao(rows){
     var pts=[], dom=0;
     if(mes==='todos'){
-      var g={}; rows.forEach(function(r){var k=mesDe(r.aceite); if(k) g[k]=(g[k]||0)+meta(r)});
+      var g={}; rows.forEach(function(r){var k=mesDe(refData(r)); if(k) g[k]=(g[k]||0)+meta(r)});
       var ks=Object.keys(g).sort(), c=0;
       ks.forEach(function(k){c+=g[k]; pts.push({l:mesCurto(k),v:c})});
       dom=Math.max(pts.length,2);
@@ -561,14 +563,14 @@ legend{padding:0 6px;font-size:12px;font-weight:600;color:var(--accent);letter-s
     var p=mes.split('-'), y=+p[0], m=+p[1], nd=new Date(y,m,0).getDate(), hoje=new Date();
     var atual=(hoje.getFullYear()===y && hoje.getMonth()+1===m), ate=atual?hoje.getDate():nd;
     var diario=[]; for(var i=0;i<nd;i++) diario.push(0);
-    rows.forEach(function(r){var d=parseInt((r.aceite||'').slice(8,10),10); if(d>=1&&d<=nd) diario[d-1]+=meta(r)});
+    rows.forEach(function(r){var d=parseInt(refData(r).slice(8,10),10); if(d>=1&&d<=nd) diario[d-1]+=meta(r)});
     var cum=0; for(var j=0;j<ate;j++){cum+=diario[j]; pts.push({l:String(j+1).padStart(2,'0')+'/'+String(m).padStart(2,'0'),v:cum})}
     return {pts:pts,dom:nd,rot:function(i){return String(i+1).padStart(2,'0')+'/'+String(m).padStart(2,'0')}};
   }
   function renderEvol(rows){
     var s=serieEvolucao(rows), pts=s.pts, n=s.dom;
     var tem=pts.some(function(p){return p.v!==0});
-    var h='<div class="hd"><h2>Evolução da meta</h2><span class="sm">'+(mes==='todos'?'Meta acumulada por mês':'Meta acumulada por dia do aceite')+'</span></div>';
+    var h='<div class="hd"><h2>Evolução da meta</h2><span class="sm">'+(mes==='todos'?'Meta acumulada por mês':'Meta acumulada por dia do pagamento')+'</span></div>';
     if(!pts.length||!tem){
       $('c-evol').innerHTML=h+'<p class="vazio">Sem negociações com valor de meta neste período. Cadastre uma negociação para ver a curva.</p>'; return s;
     }
@@ -691,7 +693,7 @@ legend{padding:0 6px;font-size:12px;font-weight:600;color:var(--accent);letter-s
   var COLS = {
     geral:[['Aceite'],['Cessionário'],['Contrato atual'],['Contrato novo'],['Tratativa'],['Estágio'],['Meta','num'],['Entrada efetiva','num'],['Próx. contato'],['']],
     upgrade:[['Aceite'],['Cessionário'],['Contrato atual'],['Contrato novo'],['Produto atual'],['Valor atual','num'],['Produto novo'],['Valor novo','num'],['Diferença (meta)','num'],['Estágio'],['Entrada efetiva','num'],['']],
-    reativacao:[['Aceite'],['Cessionário'],['Contrato atual'],['Contrato novo'],['Produto antigo'],['Valor total (meta)','num'],['Estágio'],['Entrada efetiva','num'],['']],
+    reativacao:[['Aceite'],['Cessionário'],['Contrato atual'],['Contrato novo'],['Produto novo'],['Valor total (meta)','num'],['Estágio'],['Entrada efetiva','num'],['']],
     troca:[['Aceite'],['Cessionário'],['Contrato atual'],['Contrato novo'],['Unidade'],['Valor na meta','num'],['Estágio'],['Entrada efetiva','num'],['']],
     venda:[['Aceite'],['Cessionário'],['Contrato atual'],['Contrato novo'],['Produto vendido'],['Valor total (meta)','num'],['Estágio'],['Entrada efetiva','num'],['Próx. contato'],['']],
     aguardando:[['Aceite'],['Dias parado','num'],['Cessionário'],['Contrato atual'],['Tratativa'],['Estágio'],['Meta','num'],['Entrada efetiva','num'],['Próx. contato'],['']]
@@ -764,7 +766,7 @@ legend{padding:0 6px;font-size:12px;font-weight:600;color:var(--accent);letter-s
     $('form-titulo').textContent=r?'Editar negociação':'Nova negociação';
     $('excluir').hidden=!r;
     var ini = r || {aceite:hojeISO(),tratativa:'upgrade',estagio:'aguardando'};
-    $('f-aceite').value=ini.aceite||''; $('f-trat').value=ini.tratativa||'upgrade'; $('f-cess').value=ini.cessionario||'';
+    $('f-aceite').value=ini.aceite||''; $('f-pag').value=ini.pagamento||''; $('f-trat').value=ini.tratativa||'upgrade'; $('f-cess').value=ini.cessionario||'';
     $('f-cat').value=ini.contratoAtual||''; $('f-cnov').value=ini.contratoNovo||''; $('f-est').value=ini.estagio||'aguardando';
     $('f-patual').value=ini.produtoAtual||''; $('f-vatual').value=valorCampo(ini.valorAtual);
     $('f-pnovo').value=ini.produtoNovo||''; $('f-vnovo').value=valorCampo(ini.valorNovo);
@@ -778,7 +780,7 @@ legend{padding:0 6px;font-size:12px;font-weight:600;color:var(--accent);letter-s
   function fechar(){$('modal').hidden=true; editId=null}
   function lerForm(){
     return {
-      aceite:$('f-aceite').value, tratativa:$('f-trat').value, cessionario:$('f-cess').value.trim(),
+      aceite:$('f-aceite').value, pagamento:$('f-pag').value, tratativa:$('f-trat').value, cessionario:$('f-cess').value.trim(),
       contratoAtual:$('f-cat').value.trim(), contratoNovo:$('f-cnov').value.trim(), estagio:$('f-est').value,
       produtoAtual:$('f-patual').value.trim(), valorAtual:num($('f-vatual').value),
       produtoNovo:$('f-pnovo').value.trim(), valorNovo:num($('f-vnovo').value),
@@ -795,6 +797,7 @@ legend{padding:0 6px;font-size:12px;font-weight:600;color:var(--accent);letter-s
     ev.preventDefault();
     if(!db){toast('Sem conexão com o armazenamento.');return}
     var d=lerForm(); $('salvar').disabled=true;
+    if(d.estagio==='aguardando') d.pagamento=''; else if(!d.pagamento) d.pagamento=hojeISO();
     try{
       if(editId){
         var atual=dados.filter(function(x){return x._id===editId})[0]||{};
@@ -803,7 +806,7 @@ legend{padding:0 6px;font-size:12px;font-weight:600;color:var(--accent);letter-s
       }else{
         d.criadoEm=Date.now();
         await db.collection(COL).add(d);
-        if(mesDe(d.aceite) && mes!=='todos' && mesDe(d.aceite)!==mes){mes=mesDe(d.aceite)}
+        if(mesDe(refData(d)) && mes!=='todos' && mesDe(refData(d))!==mes){mes=mesDe(refData(d))}
         toast('Negociação salva');
       }
       fechar();
@@ -813,7 +816,7 @@ legend{padding:0 6px;font-size:12px;font-weight:600;color:var(--accent);letter-s
   }
   async function mudarEstagio(id,v){
     var atual=dados.filter(function(x){return x._id===id})[0]; if(!atual||!db) return;
-    try{ await db.collection(COL).doc(id).set(Object.assign({},semId(atual),{estagio:v})); toast('Estágio atualizado') }
+    try{ await db.collection(COL).doc(id).set(Object.assign({},semId(atual),{estagio:v,pagamento:(v==='aguardando'?'':(atual.pagamento||hojeISO()))})); toast('Estágio atualizado') }
     catch(e){toast(erroDb(e,'atualizar o estágio'))}
   }
   async function contatoFeito(id){
@@ -840,10 +843,10 @@ legend{padding:0 6px;font-size:12px;font-weight:600;color:var(--accent);letter-s
   function csvCel(v){var s=String(v==null?'':v); return /[";\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s}
   async function exportar(){
     var lista=daAba(filtrados(),aba);
-    var cab=['Aceite','Cessionário','Contrato atual','Contrato novo','Tratativa','Estágio','Produto atual','Valor atual','Produto novo','Valor novo','Produto antigo','Valor reativação','Unidade troca','Valor troca','Produto venda','Valor venda','Meta','Entrada efetiva','Próximo contato','Horário','Combinado','Observações'];
+    var cab=['Aceite','Pagamento','Cessionário','Contrato atual','Contrato novo','Tratativa','Estágio','Produto atual','Valor atual','Produto novo','Valor novo','Produto novo (reativação)','Valor reativação','Unidade troca','Valor troca','Produto venda','Valor venda','Meta','Entrada efetiva','Próximo contato','Horário','Combinado','Observações'];
     var linhas=[cab.join(';')];
     lista.forEach(function(r){
-      linhas.push([dataBR(r.aceite),r.cessionario,r.contratoAtual,r.contratoNovo,TRAT[r.tratativa],EST[r.estagio],r.produtoAtual,r.valorAtual,r.produtoNovo,r.valorNovo,r.produtoAntigo,r.valorReativacao,r.unidadeTroca,r.valorTroca,r.produtoVenda,r.valorVenda,meta(r),num(r.entrada),dataBR(r.proximoContato),r.horaContato,r.notaContato,r.obs]
+      linhas.push([dataBR(r.aceite),dataBR(r.pagamento),r.cessionario,r.contratoAtual,r.contratoNovo,TRAT[r.tratativa],EST[r.estagio],r.produtoAtual,r.valorAtual,r.produtoNovo,r.valorNovo,r.produtoAntigo,r.valorReativacao,r.unidadeTroca,r.valorTroca,r.produtoVenda,r.valorVenda,meta(r),num(r.entrada),dataBR(r.proximoContato),r.horaContato,r.notaContato,r.obs]
         .map(function(v){return typeof v==='number'?csvCel(String(v).replace('.',',')):csvCel(v)}).join(';'));
     });
     try{
