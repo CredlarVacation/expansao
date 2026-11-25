@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel de Cobrança · Credlar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root{
+  --ink:#1e1b3a; --ink2:#5b5778; --ink3:#8d89a8;
+  --violet:#7c5cff; --teal:#13b5a6; --coral:#ff6f7d; --amber:#f5a524;
+  --glass:rgba(255,255,255,.58); --glass2:rgba(255,255,255,.78);
+  --line:rgba(255,255,255,.75); --line2:rgba(30,27,58,.08);
+  --shadow:0 10px 40px -12px rgba(60,40,140,.22);
+  --r:22px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%}
+body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink);background:#f4f2fb;overflow-x:hidden;font-size:14px}
+.aurora{position:fixed;inset:0;z-index:-1;overflow:hidden;background:linear-gradient(160deg,#f7f5ff 0%,#eef8f7 55%,#fff3f1 100%)}
+.aurora i{position:absolute;border-radius:50%;filter:blur(90px);opacity:.55;animation:float 22s ease-in-out infinite alternate}
+.aurora i:nth-child(1){width:560px;height:560px;background:#a48bff;top:-160px;left:-120px}
+.aurora i:nth-child(2){width:520px;height:520px;background:#5fe0cf;bottom:-180px;right:-100px;animation-delay:-7s}
+.aurora i:nth-child(3){width:420px;height:420px;background:#ffb1a8;top:30%;left:45%;animation-delay:-14s;opacity:.4}
+@keyframes float{to{transform:translate(60px,40px) scale(1.08)}}
+.glass{background:var(--glass);backdrop-filter:blur(20px) saturate(140%);-webkit-backdrop-filter:blur(20px) saturate(140%);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+button{font:inherit;cursor:pointer;border:0}
+input,select,textarea{font:inherit;color:var(--ink)}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:14px;font-weight:600;background:linear-gradient(135deg,var(--violet),#5b8cff);color:#fff;box-shadow:0 8px 20px -8px rgba(124,92,255,.7);transition:transform .15s,box-shadow .15s}
+.btn:hover{transform:translateY(-1px);box-shadow:0 12px 24px -8px rgba(124,92,255,.8)}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.btn.sec{background:var(--glass2);color:var(--ink);box-shadow:none;border:1px solid var(--line2)}
+.btn.teal{background:linear-gradient(135deg,var(--teal),#2bc6e0);box-shadow:0 8px 20px -8px rgba(19,181,166,.7)}
+.btn.danger{background:linear-gradient(135deg,var(--coral),#ff8f6b);box-shadow:0 8px 20px -8px rgba(255,111,125,.7)}
+.btn.sm{padding:6px 12px;font-size:12.5px;border-radius:10px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:12px;font-weight:600;color:var(--ink2)}
+.inp{width:100%;padding:11px 14px;border-radius:12px;border:1px solid var(--line2);background:rgba(255,255,255,.85);outline:none;transition:border .15s,box-shadow .15s}
+.inp:focus{border-color:var(--violet);box-shadow:0 0 0 4px rgba(124,92,255,.15)}
+.muted{color:var(--ink3)} .small{font-size:12px}
+.hide{display:none!important}
+
+/* ---------- LOGIN ---------- */
+#login{min-height:100vh;display:grid;place-items:center;padding:24px}
+.login-card{width:min(940px,100%);display:grid;grid-template-columns:1.05fr 1fr;overflow:hidden;padding:0}
+.login-art{position:relative;padding:44px;color:#fff;background:linear-gradient(145deg,#7c5cff 0%,#4f7dff 45%,#13b5a6 100%);display:flex;flex-direction:column;justify-content:space-between;min-height:520px;overflow:hidden}
+.login-art::before,.login-art::after{content:"";position:absolute;border-radius:50%;background:rgba(255,255,255,.14)}
+.login-art::before{width:340px;height:340px;right:-120px;top:-90px}
+.login-art::after{width:220px;height:220px;left:-70px;bottom:-60px;background:rgba(255,111,125,.35);filter:blur(10px)}
+.brand{display:flex;align-items:center;gap:12px;font-weight:800;letter-spacing:.2px;position:relative;z-index:1}
+.brand .mark{width:42px;height:42px;border-radius:13px;background:rgba(255,255,255,.22);display:grid;place-items:center;border:1px solid rgba(255,255,255,.4);font-size:20px}
+.login-art h1{font-size:34px;line-height:1.12;font-weight:800;position:relative;z-index:1}
+.login-art p{opacity:.88;margin-top:12px;max-width:320px;line-height:1.55;position:relative;z-index:1}
+.ring-demo{position:relative;z-index:1;display:flex;gap:14px;align-items:center;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);padding:14px 16px;border-radius:18px;width:max-content;backdrop-filter:blur(8px)}
+.login-form{padding:48px 44px;display:flex;flex-direction:column;justify-content:center;gap:18px;background:var(--glass2)}
+.login-form h2{font-size:24px;font-weight:800}
+.err{background:rgba(255,111,125,.12);color:#c2364a;border:1px solid rgba(255,111,125,.35);padding:10px 14px;border-radius:12px;font-size:13px}
+.ok{background:rgba(19,181,166,.12);color:#0b7d72;border:1px solid rgba(19,181,166,.35);padding:10px 14px;border-radius:12px;font-size:13px}
+@media(max-width:780px){.login-card{grid-template-columns:1fr}.login-art{min-height:auto;padding:30px;gap:24px}.login-art h1{font-size:26px}.login-form{padding:30px}}
+
+/* ---------- APP ---------- */
+#app{display:grid;grid-template-columns:250px 1fr;min-height:100vh;gap:20px;padding:20px}
+.side{position:sticky;top:20px;height:calc(100vh - 40px);padding:22px 16px;display:flex;flex-direction:column;gap:6px}
+.side .brand{color:var(--ink);margin:0 8px 22px}
+.side .brand .mark{background:linear-gradient(135deg,var(--violet),var(--teal));color:#fff;border:0}
+.nav{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:14px;color:var(--ink2);font-weight:600;background:transparent;text-align:left;width:100%;transition:background .15s,color .15s}
+.nav:hover{background:rgba(255,255,255,.6);color:var(--ink)}
+.nav.on{background:#fff;color:var(--violet);box-shadow:0 6px 18px -8px rgba(124,92,255,.45)}
+.nav svg{width:19px;height:19px;flex:none}
+.side .sep{flex:1}
+.me{display:flex;align-items:center;gap:10px;padding:12px;border-radius:16px;background:rgba(255,255,255,.55);border:1px solid var(--line)}
+.av{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;font-weight:800;color:#fff;background:linear-gradient(135deg,var(--coral),var(--violet));flex:none}
+.me .n{font-weight:700;font-size:13px;line-height:1.2}
+.tag{display:inline-block;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:3px 8px;border-radius:999px;background:rgba(124,92,255,.12);color:var(--violet)}
+.tag.supervisao{background:rgba(19,181,166,.14);color:#0b8e82}
+.tag.admin{background:rgba(255,111,125,.14);color:#d23e55}
+.tag.off{background:rgba(30,27,58,.08);color:var(--ink3)}
+.main{min-width:0;display:flex;flex-direction:column;gap:20px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 18px;flex-wrap:wrap}
+.top h1{font-size:22px;font-weight:800}
+.month{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.7);border:1px solid var(--line2);border-radius:14px;padding:4px}
+.month button{width:32px;height:32px;border-radius:10px;background:transparent;color:var(--ink2);font-size:16px}
+.month button:hover{background:#fff}
+.month span{min-width:132px;text-align:center;font-weight:700}
+.top-r{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.grid{display:grid;gap:20px}
+.g4{grid-template-columns:repeat(4,1fr)} .g3{grid-template-columns:repeat(3,1fr)} .g2{grid-template-columns:1fr 1fr}
+.card{padding:22px}
+.card h3{font-size:15px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.kpi .l{font-size:12px;font-weight:600;color:var(--ink2);text-transform:uppercase;letter-spacing:.6px}
+.kpi .v{font-size:26px;font-weight:800;margin-top:8px;letter-spacing:-.5px}
+.kpi .s{font-size:12.5px;color:var(--ink3);margin-top:4px}
+.hero{display:grid;grid-template-columns:auto 1fr;gap:30px;align-items:center;padding:26px 30px}
+.hero .big{font-size:38px;font-weight:800;letter-spacing:-1px}
+.bar{height:10px;border-radius:999px;background:rgba(30,27,58,.07);overflow:hidden}
+.bar>i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--violet),var(--teal));transition:width .6s}
+.bar.done>i{background:linear-gradient(90deg,var(--teal),#3ddc97)}
+.faixa{padding:20px;display:flex;flex-direction:column;gap:10px}
+.faixa .t{display:flex;justify-content:space-between;align-items:center;font-weight:700}
+.faixa .pct{font-size:22px;font-weight:800}
+.faixa .row{display:flex;justify-content:space-between;font-size:12.5px;color:var(--ink2)}
+.pill{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;background:rgba(19,181,166,.14);color:#0b8e82}
+.pill.warn{background:rgba(245,165,36,.16);color:#a8690a}
+.pill.low{background:rgba(255,111,125,.14);color:#d23e55}
+table{width:100%;border-collapse:separate;border-spacing:0}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink3);font-weight:700;text-align:left;padding:10px 12px;border-bottom:1px solid var(--line2);white-space:nowrap}
+td{padding:11px 12px;border-bottom:1px solid var(--line2);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+tbody tr:hover td{background:rgba(255,255,255,.5)}
+.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tbl-wrap{overflow:auto;max-height:560px}
+.pos{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;font-weight:800;background:rgba(30,27,58,.06)}
+.pos.p1{background:linear-gradient(135deg,#ffd36b,#f5a524);color:#fff}
+.pos.p2{background:linear-gradient(135deg,#d9dce8,#a9aec4);color:#fff}
+.pos.p3{background:linear-gradient(135deg,#f3b58f,#d98552);color:#fff}
+.filters{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+.filters .field{min-width:170px}
+.chart{display:flex;align-items:flex-end;gap:4px;height:150px;padding-top:10px}
+.chart .b{flex:1;border-radius:6px 6px 2px 2px;background:linear-gradient(180deg,var(--violet),rgba(124,92,255,.35));min-height:2px;position:relative}
+.chart .b.z{background:rgba(30,27,58,.06)}
+.chart .b:hover::after{content:attr(data-t);position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;font-size:11px;padding:4px 8px;border-radius:8px;white-space:nowrap;margin-bottom:6px;z-index:2}
+.chart-x{display:flex;gap:4px;margin-top:6px}.chart-x span{flex:1;text-align:center;font-size:10px;color:var(--ink3)}
+.empty{padding:36px;text-align:center;color:var(--ink3)}
+.modal-bg{position:fixed;inset:0;background:rgba(30,27,58,.35);backdrop-filter:blur(6px);display:grid;place-items:center;z-index:50;padding:20px}
+.modal{width:min(560px,100%);max-height:90vh;overflow:auto;padding:26px;background:rgba(255,255,255,.9)}
+.modal h3{font-size:18px;font-weight:800;margin-bottom:18px}
+.form-g{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-g .full{grid-column:1/-1}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:999px;border:1px solid var(--line2);background:#fff;font-size:12.5px;font-weight:600;cursor:pointer;user-select:none}
+.chip input{display:none}
+.chip.on{background:rgba(124,92,255,.12);border-color:rgba(124,92,255,.4);color:var(--violet)}
+.actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;flex-wrap:wrap}
+.toast{position:fixed;right:24px;bottom:24px;z-index:60;padding:13px 18px;border-radius:14px;background:var(--ink);color:#fff;font-weight:600;box-shadow:var(--shadow);animation:up .25s}
+.toast.e{background:#c2364a}
+@keyframes up{from{transform:translateY(12px);opacity:0}}
+.drop{border:2px dashed rgba(124,92,255,.35);border-radius:18px;padding:34px;text-align:center;background:rgba(255,255,255,.5);cursor:pointer;transition:background .15s}
+.drop:hover,.drop.over{background:rgba(124,92,255,.08)}
+.steps{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.steps span{font-size:12px;font-weight:700;padding:6px 12px;border-radius:999px;background:rgba(30,27,58,.06);color:var(--ink3)}
+.steps span.on{background:var(--violet);color:#fff}
+.mobnav{display:none}
+#view{display:flex;flex-direction:column;gap:20px}
+.mob-only{display:none}
+@media(max-width:860px){#view{gap:12px}.mob-only{display:inline-flex}}
+.spin{width:22px;height:22px;border:3px solid rgba(124,92,255,.2);border-top-color:var(--violet);border-radius:50%;animation:sp 1s linear infinite;margin:30px auto}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media(max-width:1100px){.g4{grid-template-columns:1fr 1fr}.g3{grid-template-columns:1fr 1fr}}
+@media(max-width:860px){
+  #app{grid-template-columns:1fr;padding:12px;gap:12px;padding-bottom:90px}
+  .side{display:none}
+  .mobnav{display:flex;position:fixed;left:10px;right:10px;bottom:10px;z-index:40;padding:6px;gap:4px;overflow-x:auto}
+  .mobnav .nav{flex-direction:column;gap:3px;font-size:10.5px;padding:8px 10px;min-width:64px;align-items:center}
+  .g4,.g3,.g2{grid-template-columns:1fr}
+  .hero{grid-template-columns:1fr;text-align:center;justify-items:center}
+  .form-g{grid-template-columns:1fr}
+  .top h1{font-size:18px}
+}
+</style>
+</head>
+<body>
+<div class="aurora"><i></i><i></i><i></i></div>
+
+<!-- LOGIN -->
+<section id="login" class="hide">
+  <div class="login-card glass">
+    <div class="login-art">
+      <div class="brand"><div class="mark">◆</div>Credlar · Cobrança</div>
+      <div>
+        <h1>Sua meta,<br>em tempo real.</h1>
+        <p>Acompanhe recuperação por faixa, o quanto falta para bater a meta e a evolução do mês, de qualquer lugar.</p>
+      </div>
+      <div class="ring-demo">
+        <svg width="46" height="46" viewBox="0 0 46 46"><circle cx="23" cy="23" r="19" stroke="rgba(255,255,255,.3)" stroke-width="5" fill="none"/><circle cx="23" cy="23" r="19" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round" stroke-dasharray="119.4" stroke-dashoffset="35" transform="rotate(-90 23 23)"/></svg>
+        <div><div style="font-weight:800">Acesso individual</div><div class="small" style="opacity:.85">Cada um vê só o que é seu</div></div>
+      </div>
+    </div>
+    <form class="login-form" id="fLogin" autocomplete="on">
+      <div><h2>Entrar</h2><p class="muted" style="margin-top:6px">Use o e-mail e a senha que o administrador te passou.</p></div>
+      <div class="field"><label for="lEmail">E-mail</label><input class="inp" id="lEmail" type="email" autocomplete="username" required placeholder="nome@credlarvacation.com.br"></div>
+      <div class="field"><label for="lSenha">Senha</label><input class="inp" id="lSenha" type="password" autocomplete="current-password" required placeholder="••••••••"></div>
+      <div id="lErr" class="err hide"></div>
+      <button class="btn" id="lBtn" type="submit" style="justify-content:center;padding:13px">Entrar no painel</button>
+      <p class="muted small">Esqueceu a senha? Fale com o administrador do painel.</p>
+    </form>
+  </div>
+</section>
+
+<!-- APP -->
+<section id="app" class="hide">
+  <aside class="side glass">
+    <div class="brand"><div class="mark">◆</div><div>Painel de<br>Cobrança</div></div>
+    <div id="navList"></div>
+    <div class="sep"></div>
+    <div class="me"><div class="av" id="meAv"></div><div style="min-width:0"><div class="n" id="meNome"></div><span class="tag" id="mePapel"></span></div></div>
+    <button class="nav" id="bSenha"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Trocar senha</button>
+    <button class="nav" id="bSair"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>Sair</button>
+  </aside>
+  <main class="main">
+    <header class="top glass">
+      <h1 id="pgTitle">Resumo</h1>
+      <div class="top-r">
+        <div class="month"><button id="mPrev" title="Mês anterior">‹</button><span id="mLbl"></span><button id="mNext" title="Próximo mês">›</button></div>
+        <button class="btn sec sm mob-only" id="bSenhaM">Trocar senha</button>
+        <button class="btn sec sm mob-only" id="bSairM">Sair</button>
+      </div>
+    </header>
+    <div id="view"></div>
+  </main>
+  <nav class="mobnav glass" id="mobNav"></nav>
+</section>
+
+<div id="modalRoot"></div>
+
+<script>
+/* ================== CONFIG ================== */
+const SUPABASE_URL = 'https://kylcpfhublnovdodgtyh.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_6yvUufG4mDLZDrQNMePKfg_fDX-aFoY';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: true, autoRefreshToken: true } });
+
+/* ================== ESTADO ================== */
+const hoje = new Date();
+const S = { me:null, faixas:[], perfis:[], opf:[], metas:[], rec:[], imps:[], ano:hoje.getFullYear(), mes:hoje.getMonth()+1, page:'resumo', visao:'dept', fLanc:{op:'',fx:''}, rankFx:'' };
+const MESES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+/* ================== UTIL ================== */
+const $=s=>document.querySelector(s);
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const brl=v=>(Number(v)||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const brl0=v=>(Number(v)||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0});
+const pctf=v=>(isFinite(v)?v:0).toLocaleString('pt-BR',{maximumFractionDigits:1})+'%';
+const dtbr=d=>d?d.split('-').reverse().join('/'):'';
+const norm=s=>String(s??'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
+const isAdm=()=>S.me?.papel==='admin';
+const isSup=()=>['admin','supervisao'].includes(S.me?.papel);
+const faixaNome=id=>S.faixas.find(f=>f.id===id)?.nome||id;
+const perfilNome=id=>S.perfis.find(p=>p.id===id)?.nome||'—';
+const iniciais=n=>String(n||'?').split(' ').filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase();
+function toast(msg,erro){const t=document.createElement('div');t.className='toast'+(erro?' e':'');t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),3800)}
+function mesRange(a,m){const ini=`${a}-${String(m).padStart(2,'0')}-01`;const n=m===12?[a+1,1]:[a,m+1];return [ini,`${n[0]}-${String(n[1]).padStart(2,'0')}-01`]}
+function statusPill(p){if(p>=100)return'<span class="pill">Meta batida</span>';if(p>=70)return'<span class="pill warn">No caminho</span>';return'<span class="pill low">Atenção</span>'}
+function ring(p,size=150){const r=size/2-12,c=2*Math.PI*r,o=c*(1-Math.min(p,100)/100);const id='g'+Math.random().toString(36).slice(2,7);
+ return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7c5cff"/><stop offset="1" stop-color="#13b5a6"/></linearGradient></defs>
+ <circle cx="${size/2}" cy="${size/2}" r="${r}" stroke="rgba(30,27,58,.07)" stroke-width="13" fill="none"/>
+ <circle cx="${size/2}" cy="${size/2}" r="${r}" stroke="url(#${id})" stroke-width="13" fill="none" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${o}" transform="rotate(-90 ${size/2} ${size/2})" style="transition:stroke-dashoffset .8s"/>
+ <text x="50%" y="50%" text-anchor="middle" dominant-baseline="central" font-family="Plus Jakarta Sans" font-weight="800" font-size="${size/6}" fill="#1e1b3a">${pctf(p)}</text></svg>`}
+async function fetchAll(q){let out=[],from=0;for(;;){const {data,error}=await q().range(from,from+999);if(error)throw error;out=out.concat(data);if(data.length<1000)break;from+=1000}return out}
+
+/* ================== AUTH ================== */
+$('#fLogin').addEventListener('submit',async e=>{
+  e.preventDefault();const b=$('#lBtn');b.disabled=true;b.textContent='Entrando...';$('#lErr').classList.add('hide');
+  const {error}=await sb.auth.signInWithPassword({email:$('#lEmail').value.trim(),password:$('#lSenha').value});
+  b.disabled=false;b.textContent='Entrar no painel';
+  if(error){$('#lErr').textContent=/invalid/i.test(error.message)?'E-mail ou senha incorretos.':error.message;$('#lErr').classList.remove('hide');return}
+  iniciar();
+});
+$('#bSair').onclick=async()=>{await sb.auth.signOut();location.reload()};
+$('#bSenha').onclick=()=>modalSenhaPropria();
+$('#bSairM').onclick=$('#bSair').onclick;$('#bSenhaM').onclick=()=>modalSenhaPropria();
+
+async function iniciar(){
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session){$('#login').classList.remove('hide');$('#app').classList.add('hide');return}
+  const {data:me}=await sb.from('pc_perfis').select('*').eq('id',session.user.id).maybeSingle();
+  if(!me||!me.ativo){await sb.auth.signOut();$('#login').classList.remove('hide');$('#lErr').textContent='Seu acesso não está ativo. Fale com o administrador.';$('#lErr').classList.remove('hide');return}
+  S.me=me;
+  $('#login').classList.add('hide');$('#app').classList.remove('hide');
+  $('#meNome').textContent=me.nome;$('#meAv').textContent=iniciais(me.nome);
+  $('#mePapel').textContent={operador:'Operador',supervisao:'Supervisão',admin:'Administrador'}[me.papel];$('#mePapel').className='tag '+me.papel;
+  if(!isSup())S.visao=me.id;
+  montarNav();await carregarBase();await carregarMes();render();
+}
+
+/* ================== NAV ================== */
+const ICON={
+ resumo:'<path d="M3 13h8V3H3zM13 21h8V11h-8zM3 21h8v-6H3zM13 3v6h8V3z"/>',
+ ranking:'<path d="M8 21V11M16 21V7M12 21V3M4 21h16"/>',
+ lanc:'<path d="M4 6h16M4 12h16M4 18h10"/>',
+ metas:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
+ importar:'<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>',
+ usuarios:'<circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M17 11a3 3 0 1 0 0-6M22 21a6 6 0 0 0-4-5.6"/>'};
+function paginas(){const p=[['resumo','Resumo']];if(isSup())p.push(['ranking','Ranking']);p.push(['lanc','Lançamentos']);if(isAdm())p.push(['metas','Metas'],['importar','Importar'],['usuarios','Usuários']);return p}
+function montarNav(){
+  const h=paginas().map(([k,t])=>`<button class="nav" data-p="${k}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICON[k]}</svg>${t}</button>`).join('');
+  $('#navList').innerHTML=h;$('#mobNav').innerHTML=h;
+  document.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{S.page=b.dataset.p;render()});
+}
+$('#mPrev').onclick=()=>mudarMes(-1);$('#mNext').onclick=()=>mudarMes(1);
+async function mudarMes(d){S.mes+=d;if(S.mes<1){S.mes=12;S.ano--}if(S.mes>12){S.mes=1;S.ano++}$('#view').innerHTML='<div class="spin"></div>';await carregarMes();render()}
+
+/* ================== DADOS ================== */
+async function carregarBase(){
+  const [f,p,o]=await Promise.all([
+    sb.from('pc_faixas').select('*').order('ordem'),
+    sb.from('pc_perfis').select('*').order('nome'),
+    sb.from('pc_operador_faixa').select('*')]);
+  S.faixas=f.data||[];S.perfis=p.data||[];S.opf=o.data||[];
+}
+async function carregarMes(){
+  const [ini,fim]=mesRange(S.ano,S.mes);
+  try{
+    const [m,r]=await Promise.all([
+      sb.from('pc_metas').select('*').eq('ano',S.ano).eq('mes',S.mes),
+      fetchAll(()=>sb.from('pc_recebimentos').select('*').gte('data',ini).lt('data',fim).order('data',{ascending:false}).order('id',{ascending:false}))]);
+    S.metas=m.data||[];S.rec=r;
+    if(isSup()){const {data}=await sb.from('pc_importacoes').select('*').order('criado_em',{ascending:false}).limit(30);S.imps=data||[]}
+  }catch(e){toast('Erro ao carregar dados: '+e.message,1)}
+}
+function agregados(filtroUser){
+  // retorna {porFaixa:{fx:{meta,saldo,rec}}, porUser:{uid:{meta,rec,fx:{}}}, total:{meta,rec}}
+  const A={porFaixa:{},porUser:{},total:{meta:0,rec:0,saldo:0}};
+  const ok=u=>!filtroUser||u===filtroUser;
+  const pu=u=>A.porUser[u]??={meta:0,rec:0,fx:{}};
+  const pf=f=>A.porFaixa[f]??={meta:0,rec:0,saldo:0};
+  for(const m of S.metas){if(!ok(m.user_id))continue;pf(m.faixa_id).meta+=+m.meta;pf(m.faixa_id).saldo+=+m.saldo;const u=pu(m.user_id);u.meta+=+m.meta;(u.fx[m.faixa_id]??={meta:0,rec:0}).meta+=+m.meta;A.total.meta+=+m.meta;A.total.saldo+=+m.saldo}
+  for(const r of S.rec){if(!ok(r.user_id))continue;pf(r.faixa_id).rec+=+r.valor;const u=pu(r.user_id);u.rec+=+r.valor;(u.fx[r.faixa_id]??={meta:0,rec:0}).rec+=+r.valor;A.total.rec+=+r.valor}
+  if(filtroUser)for(const o of S.opf)if(o.user_id===filtroUser)pf(o.faixa_id);
+  return A;
+}
+
+/* ================== RENDER ================== */
+function render(){
+  $('#mLbl').textContent=`${MESES[S.mes-1]} ${S.ano}`;
+  if(!paginas().some(p=>p[0]===S.page))S.page='resumo';
+  document.querySelectorAll('[data-p]').forEach(b=>b.classList.toggle('on',b.dataset.p===S.page));
+  $('#pgTitle').textContent=paginas().find(p=>p[0]===S.page)[1];
+  ({resumo:vResumo,ranking:vRanking,lanc:vLanc,metas:vMetas,importar:vImportar,usuarios:vUsuarios})[S.page]();
+}
+
+/* ---------- RESUMO ---------- */
+function vResumo(){
+  const sup=isSup();
+  const alvo=sup?(S.visao==='dept'?null:S.visao):S.me.id;
+  const A=agregados(alvo);
+  const p=A.total.meta?A.total.rec/A.total.meta*100:0;
+  const falta=Math.max(A.total.meta-A.total.rec,0);
+  const [ini]=mesRange(S.ano,S.mes);const dias=new Date(S.ano,S.mes,0).getDate();
+  const ehMesAtual=S.ano===hoje.getFullYear()&&S.mes===hoje.getMonth()+1;
+  const diasRest=ehMesAtual?Math.max(dias-hoje.getDate()+1,1):0;
+  const porDia=Array(dias).fill(0);for(const r of S.rec){if(alvo&&r.user_id!==alvo)continue;porDia[+r.data.slice(8,10)-1]+=+r.valor}
+  const mx=Math.max(...porDia,1);
+  const opsSel=sup?`<div class="field" style="min-width:240px"><label>Visão</label><select class="inp" id="selVisao"><option value="dept">Departamento (todos)</option>${S.perfis.filter(x=>x.ativo).map(x=>`<option value="${x.id}" ${S.visao===x.id?'selected':''}>${esc(x.nome)}</option>`).join('')}</select></div>`:'';
+  const fxs=Object.entries(A.porFaixa).sort((a,b)=>(S.faixas.find(f=>f.id===a[0])?.ordem??99)-(S.faixas.find(f=>f.id===b[0])?.ordem??99));
+  const nomeAlvo=alvo?perfilNome(alvo):'Departamento';
+  $('#view').innerHTML=`
+  ${sup?`<div class="glass card filters">${opsSel}</div>`:''}
+  <div class="glass hero">
+    ${ring(p,170)}
+    <div>
+      <div class="muted small" style="font-weight:700;text-transform:uppercase;letter-spacing:.6px">${esc(nomeAlvo)} · ${MESES[S.mes-1]}</div>
+      <div class="big">${brl(A.total.rec)}</div>
+      <div class="muted">recuperado de <b style="color:var(--ink)">${brl(A.total.meta)}</b> de meta</div>
+      <div class="bar ${p>=100?'done':''}" style="margin:16px 0 10px;max-width:520px"><i style="width:${Math.min(p,100)}%"></i></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">${A.total.meta?statusPill(p):'<span class="pill warn">Meta não lançada</span>'}
+      ${falta>0&&A.total.meta?`<span class="small muted">Faltam <b style="color:var(--ink)">${brl(falta)}</b>${diasRest?` · cerca de <b style="color:var(--ink)">${brl0(falta/diasRest)}</b> por dia até o fim do mês`:''}</span>`:''}</div>
+    </div>
+  </div>
+  <div class="grid g4">
+    <div class="glass card kpi"><div class="l">Recuperado</div><div class="v">${brl0(A.total.rec)}</div><div class="s">${S.rec.filter(r=>!alvo||r.user_id===alvo).length} recebimentos</div></div>
+    <div class="glass card kpi"><div class="l">Meta</div><div class="v">${brl0(A.total.meta)}</div><div class="s">${A.total.saldo?'Saldo base '+brl0(A.total.saldo):'soma das faixas'}</div></div>
+    <div class="glass card kpi"><div class="l">Falta</div><div class="v">${brl0(falta)}</div><div class="s">${p>=100?'Meta superada em '+brl0(A.total.rec-A.total.meta):'para 100%'}</div></div>
+    <div class="glass card kpi"><div class="l">Melhor dia</div><div class="v">${brl0(Math.max(...porDia))}</div><div class="s">${Math.max(...porDia)>0?'dia '+(porDia.indexOf(Math.max(...porDia))+1):'sem recebimentos'}</div></div>
+  </div>
+  <div class="glass card"><h3>Por faixa</h3>
+    ${fxs.length?`<div class="grid g3">${fxs.map(([fx,v])=>{const pp=v.meta?v.rec/v.meta*100:0;return`
+      <div class="faixa glass" style="box-shadow:none;background:rgba(255,255,255,.6)">
+        <div class="t"><span>${esc(faixaNome(fx))}</span>${v.meta?statusPill(pp):'<span class="pill warn">Sem meta</span>'}</div>
+        <div class="pct">${v.meta?pctf(pp):brl0(v.rec)}</div>
+        <div class="bar ${pp>=100?'done':''}"><i style="width:${Math.min(pp,100)}%"></i></div>
+        <div class="row"><span>Recuperado <b>${brl(v.rec)}</b></span><span>Meta <b>${brl(v.meta)}</b></span></div>
+        ${v.meta&&v.rec<v.meta?`<div class="row"><span>Falta</span><b>${brl(v.meta-v.rec)}</b></div>`:''}
+      </div>`}).join('')}</div>`:'<div class="empty">Nenhuma faixa com meta ou recebimento neste mês.</div>'}
+  </div>
+  <div class="glass card"><h3>Recuperado por dia <span class="small muted">${MESES[S.mes-1]}</span></h3>
+    <div class="chart">${porDia.map((v,i)=>`<div class="b ${v?'':'z'}" style="height:${v?Math.max(v/mx*100,3):2}%" data-t="Dia ${i+1}: ${brl(v)}"></div>`).join('')}</div>
+    <div class="chart-x">${porDia.map((v,i)=>`<span>${(i+1)%5===0||i===0?i+1:''}</span>`).join('')}</div>
+  </div>`;
+  const sv=$('#selVisao');if(sv)sv.onchange=()=>{S.visao=sv.value;render()};
+}
+
+/* ---------- RANKING ---------- */
+function vRanking(){
+  const fx=S.rankFx;
+  const linhas=S.perfis.filter(p=>p.ativo&&p.papel!=='admin'||S.metas.some(m=>m.user_id===p.id)||S.rec.some(r=>r.user_id===p.id)).map(p=>{
+    let meta=0,rec=0;
+    for(const m of S.metas)if(m.user_id===p.id&&(!fx||m.faixa_id===fx))meta+=+m.meta;
+    for(const r of S.rec)if(r.user_id===p.id&&(!fx||r.faixa_id===fx))rec+=+r.valor;
+    const fxs=[...new Set([...S.opf.filter(o=>o.user_id===p.id).map(o=>o.faixa_id),...S.metas.filter(m=>m.user_id===p.id).map(m=>m.faixa_id)])];
+    return {p,meta,rec,pct:meta?rec/meta*100:null,fxs};
+  }).filter(l=>!fx||l.meta||l.rec||l.fxs.includes(fx));
+  linhas.sort((a,b)=>(b.pct??-1)-(a.pct??-1)||b.rec-a.rec);
+  $('#view').innerHTML=`
+  <div class="glass card filters">
+    <div class="field"><label>Faixa</label><select class="inp" id="rkFx"><option value="">Todas as faixas</option>${S.faixas.map(f=>`<option value="${f.id}" ${fx===f.id?'selected':''}>${esc(f.nome)}</option>`).join('')}</select></div>
+    <p class="small muted" style="flex:1;min-width:200px">Ordenado pelo % da meta atingido. Quem ainda não tem meta lançada aparece no fim, pelo valor recuperado. Só supervisão e administração veem esta tela.</p>
+  </div>
+  <div class="glass card"><div class="tbl-wrap"><table>
+    <thead><tr><th>#</th><th>Operador</th><th>Faixas</th><th class="num">Meta</th><th class="num">Recuperado</th><th class="num">Falta</th><th style="min-width:160px">% da meta</th></tr></thead>
+    <tbody>${linhas.length?linhas.map((l,i)=>`<tr>
+      <td><div class="pos ${i<3&&l.pct!=null?'p'+(i+1):''}">${i+1}</div></td>
+      <td><b>${esc(l.p.nome)}</b>${l.p.ativo?'':' <span class="tag off">inativo</span>'}</td>
+      <td class="small muted">${l.fxs.map(faixaNome).map(esc).join(', ')||'—'}</td>
+      <td class="num">${brl(l.meta)}</td><td class="num"><b>${brl(l.rec)}</b></td>
+      <td class="num">${l.meta?brl(Math.max(l.meta-l.rec,0)):'—'}</td>
+      <td>${l.pct==null?'<span class="pill warn">Sem meta</span>':`<div style="display:flex;align-items:center;gap:10px"><div class="bar ${l.pct>=100?'done':''}" style="flex:1"><i style="width:${Math.min(l.pct,100)}%"></i></div><b style="min-width:52px;text-align:right">${pctf(l.pct)}</b></div>`}</td>
+    </tr>`).join(''):'<tr><td colspan="7" class="empty">Sem dados neste mês.</td></tr>'}</tbody>
+  </table></div></div>`;
+  $('#rkFx').onchange=e=>{S.rankFx=e.target.value;render()};
+}
+
+/* ---------- LANÇAMENTOS ---------- */
+function vLanc(){
+  const f=S.fLanc;
+  let lista=S.rec.filter(r=>(!f.op||r.user_id===f.op)&&(!f.fx||r.faixa_id===f.fx));
+  const tot=lista.reduce((s,r)=>s+ +r.valor,0);
+  const LIM=500;
+  $('#view').innerHTML=`
+  <div class="glass card filters">
+    ${isSup()?`<div class="field"><label>Operador</label><select class="inp" id="flOp"><option value="">Todos</option>${S.perfis.map(p=>`<option value="${p.id}" ${f.op===p.id?'selected':''}>${esc(p.nome)}</option>`).join('')}</select></div>`:''}
+    <div class="field"><label>Faixa</label><select class="inp" id="flFx"><option value="">Todas</option>${S.faixas.map(x=>`<option value="${x.id}" ${f.fx===x.id?'selected':''}>${esc(x.nome)}</option>`).join('')}</select></div>
+    <div style="flex:1"></div>
+    ${isAdm()?'<button class="btn" id="bNovoRec">+ Lançar recebimento</button>':''}
+  </div>
+  <div class="glass card"><h3>${lista.length} recebimentos <span>${brl(tot)}</span></h3><div class="tbl-wrap"><table>
+    <thead><tr><th>Data</th>${isSup()?'<th>Operador</th>':''}<th>Faixa</th><th>Contrato</th><th>Cliente</th><th class="num">Valor</th><th>Origem</th>${isAdm()?'<th></th>':''}</tr></thead>
+    <tbody>${lista.length?lista.slice(0,LIM).map(r=>`<tr>
+      <td>${dtbr(r.data)}</td>${isSup()?`<td>${esc(perfilNome(r.user_id))}</td>`:''}<td>${esc(faixaNome(r.faixa_id))}</td>
+      <td>${esc(r.contrato||'—')}</td><td class="small">${esc(r.cliente||r.descricao||'—')}</td><td class="num"><b>${brl(r.valor)}</b></td>
+      <td><span class="tag ${r.origem==='manual'?'':'supervisao'}">${r.origem==='manual'?'manual':'planilha'}</span></td>
+      ${isAdm()?`<td><button class="btn sec sm" data-del="${r.id}">Excluir</button></td>`:''}</tr>`).join(''):`<tr><td colspan="8" class="empty">Nenhum recebimento neste mês.</td></tr>`}</tbody>
+  </table>${lista.length>LIM?`<p class="small muted" style="padding:10px">Mostrando os ${LIM} mais recentes. Use os filtros para ver os demais. O total acima considera todos.</p>`:''}</div></div>
+  ${isSup()&&S.imps.length?`<div class="glass card"><h3>Últimas importações de planilha</h3><div class="tbl-wrap"><table>
+    <thead><tr><th>Quando</th><th>Arquivo</th><th>Por</th><th class="num">Linhas</th><th class="num">Total</th>${isAdm()?'<th></th>':''}</tr></thead>
+    <tbody>${S.imps.map(i=>`<tr><td>${new Date(i.criado_em).toLocaleString('pt-BR')}</td><td>${esc(i.arquivo)}</td><td>${esc(perfilNome(i.criado_por))}</td><td class="num">${i.linhas??'—'}</td><td class="num">${brl(i.total)}</td>
+    ${isAdm()?`<td><button class="btn sec sm" data-undo="${i.id}">Desfazer</button></td>`:''}</tr>`).join('')}</tbody></table></div></div>`:''}`;
+  const o=$('#flOp');if(o)o.onchange=()=>{S.fLanc.op=o.value;render()};
+  $('#flFx').onchange=e=>{S.fLanc.fx=e.target.value;render()};
+  const n=$('#bNovoRec');if(n)n.onclick=modalRecebimento;
+  document.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{
+    if(!confirmar('Excluir este recebimento?'))return;
+    const {error}=await sb.from('pc_recebimentos').delete().eq('id',b.dataset.del);
+    if(error)return toast(error.message,1);toast('Recebimento excluído');await carregarMes();render()});
+  document.querySelectorAll('[data-undo]').forEach(b=>b.onclick=async()=>{
+    if(!confirmar('Desfazer esta importação? Todos os recebimentos que vieram dessa planilha serão apagados.'))return;
+    const {error}=await sb.from('pc_importacoes').delete().eq('id',b.dataset.undo);
+    if(error)return toast(error.message,1);toast('Importação desfeita');await carregarMes();render()});
+}
+function confirmar(msg){return window.confirm(msg)}
+
+function abrirModal(html,onMount){const r=$('#modalRoot');r.innerHTML=`<div class="modal-bg"><div class="modal glass">${html}</div></div>`;
+  r.querySelector('.modal-bg').addEventListener('mousedown',e=>{if(e.target.classList.contains('modal-bg'))fecharModal()});onMount&&onMount(r)}
+function fecharModal(){$('#modalRoot').innerHTML=''}
+
+function modalRecebimento(){
+  const ops=S.perfis.filter(p=>p.ativo);
+  abrirModal(`<h3>Lançar recebimento</h3>
+   <form id="fRec" class="form-g">
+    <div class="field full"><label>Operador</label><select class="inp" id="rOp" required>${ops.map(p=>`<option value="${p.id}">${esc(p.nome)}</option>`).join('')}</select></div>
+    <div class="field"><label>Faixa</label><select class="inp" id="rFx" required></select></div>
+    <div class="field"><label>Data do pagamento</label><input class="inp" type="date" id="rDt" required value="${new Date().toISOString().slice(0,10)}"></div>
+    <div class="field"><label>Valor (R$)</label><input class="inp" id="rVl" required inputmode="decimal" placeholder="1.234,56"></div>
+    <div class="field"><label>Contrato</label><input class="inp" id="rCt" placeholder="opcional"></div>
+    <div class="field full"><label>Cliente / observação</label><input class="inp" id="rCl" placeholder="opcional"></div>
+    <div class="full actions" style="margin:0"><button type="button" class="btn sec" onclick="fecharModal()">Cancelar</button><button class="btn">Salvar</button></div>
+   </form>`,()=>{
+    const fxSel=()=>{const u=$('#rOp').value;const minhas=S.opf.filter(o=>o.user_id===u).map(o=>o.faixa_id);
+      $('#rFx').innerHTML=S.faixas.map(f=>`<option value="${f.id}" ${minhas[0]===f.id?'selected':''}>${esc(f.nome)}${minhas.includes(f.id)?' ★':''}</option>`).join('')};
+    $('#rOp').onchange=fxSel;fxSel();
+    $('#fRec').onsubmit=async e=>{e.preventDefault();const v=parseValor($('#rVl').value);if(!v)return toast('Valor inválido',1);
+      const {error}=await sb.from('pc_recebimentos').insert({user_id:$('#rOp').value,faixa_id:$('#rFx').value,data:$('#rDt').value,valor:v,contrato:$('#rCt').value.trim()||null,cliente:$('#rCl').value.trim()||null,origem:'manual',criado_por:S.me.id});
+      if(error)return toast(error.message,1);fecharModal();toast('Recebimento lançado');await carregarMes();render()};
+  });
+}
+
+/* ---------- METAS ---------- */
+function vMetas(){
+  const pares=[];const vis=new Set();
+  const add=(u,f)=>{const k=u+'|'+f;if(vis.has(k))return;vis.add(k);pares.push([u,f])};
+  for(const p of S.perfis.filter(p=>p.ativo))for(const o of S.opf.filter(o=>o.user_id===p.id))add(p.id,o.faixa_id);
+  for(const m of S.metas)add(m.user_id,m.faixa_id);
+  pares.sort((a,b)=>perfilNome(a[0]).localeCompare(perfilNome(b[0]))||(S.faixas.find(f=>f.id===a[1])?.ordem??0)-(S.faixas.find(f=>f.id===b[1])?.ordem??0));
+  const get=(u,f)=>S.metas.find(m=>m.user_id===u&&m.faixa_id===f);
+  const recDe=(u,f)=>S.rec.filter(r=>r.user_id===u&&r.faixa_id===f).reduce((s,r)=>s+ +r.valor,0);
+  const fmt=v=>v?Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2}):'';
+  $('#view').innerHTML=`
+  <div class="glass card filters">
+    <p class="small muted" style="flex:1;min-width:240px">Defina a meta de cada operador em cada faixa para <b>${MESES[S.mes-1]} ${S.ano}</b>. As linhas vêm das faixas cadastradas em <b>Usuários</b>. O saldo é opcional, só para referência.</p>
+    <button class="btn sec" id="bCopiar">Copiar do mês anterior</button>
+    <button class="btn" id="bSalvarMetas">Salvar metas</button>
+  </div>
+  <div class="glass card"><div class="tbl-wrap"><table>
+    <thead><tr><th>Operador</th><th>Faixa</th><th class="num">Saldo base (R$)</th><th class="num">Meta (R$)</th><th class="num">Recuperado</th><th class="num">%</th></tr></thead>
+    <tbody>${pares.length?pares.map(([u,f])=>{const m=get(u,f);const r=recDe(u,f);return`<tr>
+      <td><b>${esc(perfilNome(u))}</b></td><td>${esc(faixaNome(f))}</td>
+      <td class="num"><input class="inp" style="max-width:150px;text-align:right" data-u="${u}" data-f="${f}" data-k="saldo" value="${fmt(m?.saldo)}" inputmode="decimal"></td>
+      <td class="num"><input class="inp" style="max-width:150px;text-align:right" data-u="${u}" data-f="${f}" data-k="meta" value="${fmt(m?.meta)}" inputmode="decimal"></td>
+      <td class="num">${brl(r)}</td><td class="num">${m&&+m.meta?pctf(r/m.meta*100):'—'}</td></tr>`}).join(''):'<tr><td colspan="6" class="empty">Nenhum operador com faixa definida. Vá em <b>Usuários</b> e marque as faixas de cada um.</td></tr>'}</tbody>
+  </table></div></div>`;
+  $('#bSalvarMetas').onclick=async()=>{
+    const rows={};document.querySelectorAll('input[data-u]').forEach(i=>{const k=i.dataset.u+'|'+i.dataset.f;rows[k]??={user_id:i.dataset.u,faixa_id:i.dataset.f,ano:S.ano,mes:S.mes,saldo:0,meta:0,atualizado_em:new Date().toISOString()};rows[k][i.dataset.k]=parseValor(i.value)||0});
+    const lista=Object.values(rows);if(!lista.length)return;
+    const {error}=await sb.from('pc_metas').upsert(lista,{onConflict:'user_id,faixa_id,ano,mes'});
+    if(error)return toast(error.message,1);toast('Metas salvas');await carregarMes();render()};
+  $('#bCopiar').onclick=async()=>{
+    const pa=S.mes===1?[S.ano-1,12]:[S.ano,S.mes-1];
+    const {data,error}=await sb.from('pc_metas').select('user_id,faixa_id,saldo,meta').eq('ano',pa[0]).eq('mes',pa[1]);
+    if(error)return toast(error.message,1);if(!data.length)return toast('O mês anterior não tem metas lançadas',1);
+    if(S.metas.length&&!confirmar('Já existem metas neste mês. Substituir pelas do mês anterior?'))return;
+    const {error:e2}=await sb.from('pc_metas').upsert(data.map(d=>({...d,ano:S.ano,mes:S.mes,atualizado_em:new Date().toISOString()})),{onConflict:'user_id,faixa_id,ano,mes'});
+    if(e2)return toast(e2.message,1);toast(`${data.length} metas copiadas`);await carregarMes();render()};
+}
+
+/* ---------- IMPORTAR ---------- */
+function parseValor(v){
+  if(typeof v==='number')return Math.round(v*100)/100;
+  let s=String(v??'').replace(/[R$\s]/g,'').trim();if(!s)return 0;
+  const neg=/^\(.*\)$/.test(s)||s.startsWith('-');s=s.replace(/[()\-]/g,'');
+  if(s.includes(',')&&s.includes('.')){s=s.lastIndexOf(',')>s.lastIndexOf('.')?s.replace(/\./g,'').replace(',','.'):s.replace(/,/g,'')}
+  else if(s.includes(','))s=s.replace(/\./g,'').replace(',','.');
+  else if((s.match(/\./g)||[]).length>1)s=s.replace(/\./g,'');
+  const n=parseFloat(s);return isFinite(n)?Math.round((neg?-n:n)*100)/100:0;
+}
+function parseData(v){
+  if(v instanceof Date&&!isNaN(v))return `${v.getFullYear()}-${String(v.getMonth()+1).padStart(2,'0')}-${String(v.getDate()).padStart(2,'0')}`;
+  if(typeof v==='number'&&v>20000&&v<80000){const d=new Date(Math.round((v-25569)*864e5));return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`}
+  const s=String(v??'').trim();let m;
+  if(m=s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/)){let y=+m[3];if(y<100)y+=2000;return `${y}-${String(m[2]).padStart(2,'0')}-${String(m[1]).padStart(2,'0')}`}
+  if(m=s.match(/^(\d{4})-(\d{2})-(\d{2})/))return `${m[1]}-${m[2]}-${m[3]}`;
+  return null;
+}
+function parseCSV(txt){
+  const l1=txt.split(/\r?\n/)[0]||'';const cnt=c=>l1.split(c).length;
+  const d=[';','\t',',','|'].sort((a,b)=>cnt(b)-cnt(a))[0];
+  const rows=[];let row=[],cur='',q=false;
+  for(let i=0;i<txt.length;i++){const c=txt[i];
+    if(q){if(c==='"'){if(txt[i+1]==='"'){cur+='"';i++}else q=false}else cur+=c}
+    else if(c==='"')q=true;else if(c===d){row.push(cur);cur=''}else if(c==='\n'||c==='\r'){if(c==='\r'&&txt[i+1]==='\n')i++;row.push(cur);rows.push(row);row=[];cur=''}else cur+=c}
+  if(cur||row.length){row.push(cur);rows.push(row)}
+  return rows.filter(r=>r.some(x=>String(x).trim()!==''));
+}
+function detectaFaixa(txt){
+  const t=norm(txt);if(!t)return null;
+  const id=S.faixas.find(f=>norm(f.id)===t||norm(f.nome)===t);if(id)return id.id;
+  const m=t.match(/(?:^|\D)0?([1-9])\s*(?:a\s*)?parcela/);if(m&&S.faixas.some(f=>f.id===m[1]+'p'))return m[1]+'p';
+  for(const f of S.faixas)for(const k of String(f.palavras_chave||'').split(',').map(norm).filter(Boolean))if(t.includes(k))return f.id;
+  return null;
+}
+function casaOperador(nome){
+  const n=norm(nome);if(!n)return null;const tk=n.split(' ');
+  let p=S.perfis.find(x=>norm(x.nome)===n);if(p)return p.id;
+  const cand=S.perfis.filter(x=>{const t=norm(x.nome).split(' ');return t.length&&tk.includes(t[0])&&tk.includes(t[t.length-1])});
+  if(cand.length===1)return cand[0].id;
+  const em=S.perfis.find(x=>norm(x.email.split('@')[0].replace(/[._]/g,' '))===n);return em?em.id:null;
+}
+const IMP={step:1,arquivo:'',head:[],rows:[],map:{},fxFixa:'',opFixo:'',mapOp:{},mapFx:{}};
+function lsGet(k){try{return JSON.parse(localStorage.getItem(k)||'{}')}catch{return{}}}
+function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}
+
+function vImportar(){
+  const steps=`<div class="steps">${['1. Arquivo','2. Colunas','3. Conferir'].map((s,i)=>`<span class="${IMP.step===i+1?'on':''}">${s}</span>`).join('')}</div>`;
+  if(IMP.step===1){
+    $('#view').innerHTML=`<div class="glass card">${steps}
+      <label class="drop" id="drop"><input type="file" id="fArq" accept=".csv,.txt,.xlsx,.xls" hidden>
+        <div style="font-size:34px">📄</div><div style="font-weight:700;margin-top:8px">Clique ou arraste a planilha aqui</div>
+        <div class="small muted" style="margin-top:6px">CSV ou Excel exportado do sistema de cobrança. Cada linha deve ser um pagamento recebido.</div></label>
+      <p class="small muted" style="margin-top:14px">Pode importar a mesma planilha de novo sem medo: linhas que já foram importadas são ignoradas automaticamente.</p></div>`;
+    const inp=$('#fArq'),dr=$('#drop');
+    inp.onchange=()=>inp.files[0]&&lerArquivo(inp.files[0]);
+    dr.ondragover=e=>{e.preventDefault();dr.classList.add('over')};dr.ondragleave=()=>dr.classList.remove('over');
+    dr.ondrop=e=>{e.preventDefault();dr.classList.remove('over');e.dataTransfer.files[0]&&lerArquivo(e.dataTransfer.files[0])};
+    return;
+  }
+  if(IMP.step===2){
+    const opt=(k)=>`<option value="">— não usar —</option>`+IMP.head.map((h,i)=>`<option value="${i}" ${IMP.map[k]===i?'selected':''}>${esc(h||'Coluna '+(i+1))}</option>`).join('');
+    $('#view').innerHTML=`<div class="glass card">${steps}
+      <h3>Diga qual coluna é cada informação <span class="small muted">${esc(IMP.arquivo)} · ${IMP.rows.length} linhas</span></h3>
+      <div class="form-g" style="grid-template-columns:repeat(3,1fr)">
+        <div class="field"><label>Data do pagamento *</label><select class="inp" data-m="data">${opt('data')}</select></div>
+        <div class="field"><label>Valor recebido *</label><select class="inp" data-m="valor">${opt('valor')}</select></div>
+        <div class="field"><label>Operador</label><select class="inp" data-m="operador">${opt('operador')}</select></div>
+        <div class="field"><label>Faixa / perfil</label><select class="inp" data-m="faixa">${opt('faixa')}</select></div>
+        <div class="field"><label>Contrato</label><select class="inp" data-m="contrato">${opt('contrato')}</select></div>
+        <div class="field"><label>Cliente</label><select class="inp" data-m="cliente">${opt('cliente')}</select></div>
+        <div class="field"><label>Se não houver coluna de operador, todas as linhas são de:</label><select class="inp" id="opFixo"><option value="">— escolher —</option>${S.perfis.map(p=>`<option value="${p.id}" ${IMP.opFixo===p.id?'selected':''}>${esc(p.nome)}</option>`).join('')}</select></div>
+        <div class="field"><label>Se não houver coluna de faixa, todas as linhas são da faixa:</label><select class="inp" id="fxFixa"><option value="">— escolher —</option>${S.faixas.map(f=>`<option value="${f.id}" ${IMP.fxFixa===f.id?'selected':''}>${esc(f.nome)}</option>`).join('')}</select></div>
+      </div>
+      <h3 style="margin-top:22px">Primeiras linhas do arquivo</h3>
+      <div class="tbl-wrap" style="max-height:260px"><table><thead><tr>${IMP.head.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead>
+      <tbody>${IMP.rows.slice(0,6).map(r=>`<tr>${IMP.head.map((h,i)=>`<td class="small">${esc(r[i] instanceof Date?r[i].toLocaleDateString('pt-BR'):r[i])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+      <div class="actions"><button class="btn sec" id="bVolta">Trocar arquivo</button><button class="btn" id="bAvanca">Continuar</button></div></div>`;
+    document.querySelectorAll('[data-m]').forEach(s=>s.onchange=()=>{IMP.map[s.dataset.m]=s.value===''?undefined:+s.value});
+    $('#opFixo').onchange=e=>IMP.opFixo=e.target.value;$('#fxFixa').onchange=e=>IMP.fxFixa=e.target.value;
+    $('#bVolta').onclick=()=>{IMP.step=1;render()};
+    $('#bAvanca').onclick=()=>{
+      if(IMP.map.data==null||IMP.map.valor==null)return toast('Escolha as colunas de Data e Valor',1);
+      if(IMP.map.operador==null&&!IMP.opFixo)return toast('Escolha a coluna de operador ou um operador para todas as linhas',1);
+      if(IMP.map.faixa==null&&!IMP.fxFixa)return toast('Escolha a coluna de faixa ou uma faixa para todas as linhas',1);
+      lsSet('pc_map_cols',{head:IMP.head,map:IMP.map});IMP.step=3;render()};
+    return;
+  }
+  // passo 3
+  const memOp=lsGet('pc_map_op'),memFx=lsGet('pc_map_fx');
+  const nomesCsv=new Set(),perfisCsv=new Set();
+  for(const r of IMP.rows){if(IMP.map.operador!=null)nomesCsv.add(String(r[IMP.map.operador]??'').trim());if(IMP.map.faixa!=null)perfisCsv.add(String(r[IMP.map.faixa]??'').trim())}
+  for(const n of nomesCsv)if(!(n in IMP.mapOp))IMP.mapOp[n]=memOp[n]??casaOperador(n)??'';
+  for(const n of perfisCsv)if(!(n in IMP.mapFx))IMP.mapFx[n]=memFx[n]??detectaFaixa(n)??'';
+  const linhas=[],erros=[];const cont={};
+  IMP.rows.forEach((r,i)=>{
+    const data=parseData(r[IMP.map.data]);const valor=parseValor(r[IMP.map.valor]);
+    const uid=IMP.map.operador!=null?IMP.mapOp[String(r[IMP.map.operador]??'').trim()]:IMP.opFixo;
+    const fx=IMP.map.faixa!=null?IMP.mapFx[String(r[IMP.map.faixa]??'').trim()]:IMP.fxFixa;
+    if(!data||!valor){erros.push(i);return}
+    if(!uid||uid==='__ign'||!fx||fx==='__ign')return;
+    const contrato=IMP.map.contrato!=null?String(r[IMP.map.contrato]??'').trim():'';
+    const cliente=IMP.map.cliente!=null?String(r[IMP.map.cliente]??'').trim():'';
+    const base=[data,contrato,valor.toFixed(2),fx,uid,norm(cliente)].join('|');cont[base]=(cont[base]||0)+1;
+    linhas.push({user_id:uid,faixa_id:fx,data,valor,contrato:contrato||null,cliente:cliente||null,origem:'importacao',chave:base+'#'+cont[base],criado_por:S.me.id});
+  });
+  const pend=[...nomesCsv].filter(n=>!IMP.mapOp[n]).length+[...perfisCsv].filter(n=>!IMP.mapFx[n]).length;
+  const resumo={};for(const l of linhas){const k=l.user_id+'|'+l.faixa_id;(resumo[k]??={u:l.user_id,f:l.faixa_id,n:0,v:0});resumo[k].n++;resumo[k].v+=l.valor}
+  const meses={};for(const l of linhas){const k=l.data.slice(0,7);meses[k]=(meses[k]||0)+1}
+  const total=linhas.reduce((s,l)=>s+l.valor,0);
+  const selOp=n=>`<select class="inp" data-op="${esc(n)}"><option value="">— escolher —</option><option value="__ign" ${IMP.mapOp[n]==='__ign'?'selected':''}>Ignorar estas linhas</option>${S.perfis.map(p=>`<option value="${p.id}" ${IMP.mapOp[n]===p.id?'selected':''}>${esc(p.nome)}</option>`).join('')}</select>`;
+  const selFx=n=>`<select class="inp" data-fx="${esc(n)}"><option value="">— escolher —</option><option value="__ign" ${IMP.mapFx[n]==='__ign'?'selected':''}>Ignorar estas linhas</option>${S.faixas.map(f=>`<option value="${f.id}" ${IMP.mapFx[n]===f.id?'selected':''}>${esc(f.nome)}</option>`).join('')}</select>`;
+  $('#view').innerHTML=`<div class="glass card">${steps}
+    ${pend?`<div class="err" style="margin-bottom:16px">Há ${pend} nome(s) que eu não consegui reconhecer sozinho. Escolha abaixo a quem eles correspondem (ou "Ignorar"). As linhas deles só entram depois disso.</div>`:''}
+    <div class="grid g2">
+      ${nomesCsv.size?`<div><h3>Operadores da planilha</h3><div class="tbl-wrap" style="max-height:320px"><table><thead><tr><th>Na planilha</th><th>No painel</th></tr></thead><tbody>
+        ${[...nomesCsv].sort().map(n=>`<tr><td class="small">${esc(n||'(vazio)')}</td><td>${selOp(n)}</td></tr>`).join('')}</tbody></table></div></div>`:''}
+      ${perfisCsv.size?`<div><h3>Faixas da planilha</h3><div class="tbl-wrap" style="max-height:320px"><table><thead><tr><th>Na planilha</th><th>Faixa</th></tr></thead><tbody>
+        ${[...perfisCsv].sort().map(n=>`<tr><td class="small">${esc(n||'(vazio)')}</td><td>${selFx(n)}</td></tr>`).join('')}</tbody></table></div></div>`:''}
+    </div></div>
+    <div class="glass card"><h3>O que vai entrar <span>${linhas.length} linhas · ${brl(total)}</span></h3>
+      <p class="small muted" style="margin-bottom:12px">Meses no arquivo: ${Object.entries(meses).sort().map(([k,v])=>`<b>${k.split('-').reverse().join('/')}</b> (${v})`).join(', ')||'—'}${erros.length?` · <span style="color:#c2364a">${erros.length} linha(s) sem data ou valor válidos serão puladas</span>`:''}</p>
+      <div class="tbl-wrap" style="max-height:320px"><table><thead><tr><th>Operador</th><th>Faixa</th><th class="num">Linhas</th><th class="num">Total</th></tr></thead>
+      <tbody>${Object.values(resumo).sort((a,b)=>b.v-a.v).map(r=>`<tr><td>${esc(perfilNome(r.u))}</td><td>${esc(faixaNome(r.f))}</td><td class="num">${r.n}</td><td class="num"><b>${brl(r.v)}</b></td></tr>`).join('')||'<tr><td colspan="4" class="empty">Nada para importar ainda.</td></tr>'}</tbody></table></div>
+      <div class="actions"><button class="btn sec" id="bVolta">Voltar</button><button class="btn teal" id="bImportar" ${linhas.length?'':'disabled'}>Importar ${linhas.length} linhas</button></div></div>`;
+  document.querySelectorAll('[data-op]').forEach(s=>s.onchange=()=>{IMP.mapOp[s.dataset.op]=s.value;const m=lsGet('pc_map_op');m[s.dataset.op]=s.value;lsSet('pc_map_op',m);render()});
+  document.querySelectorAll('[data-fx]').forEach(s=>s.onchange=()=>{IMP.mapFx[s.dataset.fx]=s.value;const m=lsGet('pc_map_fx');m[s.dataset.fx]=s.value;lsSet('pc_map_fx',m);render()});
+  $('#bVolta').onclick=()=>{IMP.step=2;render()};
+  $('#bImportar').onclick=async()=>{
+    const b=$('#bImportar');b.disabled=true;b.textContent='Importando...';
+    const ano=+linhas[0].data.slice(0,4),mes=+linhas[0].data.slice(5,7);
+    const {data:imp,error}=await sb.from('pc_importacoes').insert({arquivo:IMP.arquivo,linhas:0,total:0,ano,mes,criado_por:S.me.id}).select().single();
+    if(error){b.disabled=false;return toast(error.message,1)}
+    let ins=0,soma=0;
+    for(let i=0;i<linhas.length;i+=500){
+      const lote=linhas.slice(i,i+500).map(l=>({...l,importacao_id:imp.id}));
+      const {data,error:e}=await sb.from('pc_recebimentos').upsert(lote,{onConflict:'chave',ignoreDuplicates:true}).select('valor');
+      if(e){toast('Erro no lote: '+e.message,1);break}
+      ins+=data.length;soma+=data.reduce((s,d)=>s+ +d.valor,0);b.textContent=`Importando... ${Math.min(i+500,linhas.length)}/${linhas.length}`;
+    }
+    if(ins===0){await sb.from('pc_importacoes').delete().eq('id',imp.id);toast('Todas as linhas já tinham sido importadas antes. Nada novo.');}
+    else{await sb.from('pc_importacoes').update({linhas:ins,total:soma}).eq('id',imp.id);toast(`${ins} recebimentos importados (${brl(soma)})${linhas.length-ins?` · ${linhas.length-ins} já existiam`:''}`)}
+    Object.assign(IMP,{step:1,arquivo:'',head:[],rows:[],map:{},mapOp:{},mapFx:{}});
+    S.ano=ano;S.mes=mes;await carregarMes();S.page='resumo';render();
+  };
+}
+async function lerArquivo(file){
+  try{
+    let rows;
+    if(/\.(xlsx|xls)$/i.test(file.name)){
+      const wb=XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:true});
+      rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:true,defval:''});
+    }else{
+      const buf=await file.arrayBuffer();let txt=new TextDecoder('utf-8').decode(buf);
+      if(txt.includes('�'))txt=new TextDecoder('windows-1252').decode(buf);
+      rows=parseCSV(txt.replace(/^﻿/,''));
+    }
+    rows=rows.filter(r=>r.some(x=>String(x).trim()!==''));
+    if(rows.length<2)return toast('A planilha parece vazia',1);
+    IMP.head=rows[0].map(h=>String(h).trim());IMP.rows=rows.slice(1);IMP.arquivo=file.name;IMP.map={};IMP.mapOp={};IMP.mapFx={};
+    const mem=lsGet('pc_map_cols');
+    if(mem.head&&JSON.stringify(mem.head)===JSON.stringify(IMP.head))IMP.map=mem.map;
+    else{const H=IMP.head.map(norm);const acha=(...re)=>{for(const r of re){const i=H.findIndex(h=>r.test(h));if(i>=0)return i}};
+      IMP.map={data:acha(/data.*pag/,/dt.*pag/,/^data$/,/data/,/^dt/),valor:acha(/valor.*(pago|receb)/,/^valor$/,/valor/,/vlr/,/receb/),
+        operador:acha(/operador/,/consultor/,/usuario/,/responsavel/,/atendente/),faixa:acha(/faixa/,/perfil/,/carteira/,/campanha/,/fila/),
+        contrato:acha(/contrato/,/cota/),cliente:acha(/cliente/,/^nome/,/devedor/)}}
+    IMP.step=2;render();
+  }catch(e){toast('Não consegui ler o arquivo: '+e.message,1)}
+}
+
+/* ---------- USUÁRIOS ---------- */
+function vUsuarios(){
+  const fxDe=u=>S.opf.filter(o=>o.user_id===u).map(o=>faixaNome(o.faixa_id));
+  $('#view').innerHTML=`
+  <div class="glass card filters"><p class="small muted" style="flex:1;min-width:240px"><b>Operador</b> vê só os próprios números. <b>Supervisão</b> vê toda a equipe e o ranking. <b>Administrador</b> também lança metas, importa planilhas e cria usuários.</p>
+    <button class="btn" id="bNovoU">+ Novo usuário</button></div>
+  <div class="glass card"><div class="tbl-wrap"><table>
+    <thead><tr><th>Nome</th><th>E-mail (login)</th><th>Nível</th><th>Faixas</th><th>Situação</th><th></th></tr></thead>
+    <tbody>${S.perfis.map(p=>`<tr><td><div style="display:flex;align-items:center;gap:10px"><div class="av" style="width:32px;height:32px;border-radius:10px;font-size:12px">${iniciais(p.nome)}</div><b>${esc(p.nome)}</b></div></td>
+      <td class="small">${esc(p.email)}</td><td><span class="tag ${p.papel}">${{operador:'Operador',supervisao:'Supervisão',admin:'Admin'}[p.papel]}</span></td>
+      <td class="small muted">${esc(fxDe(p.id).join(', ')||'—')}</td><td>${p.ativo?'<span class="pill">Ativo</span>':'<span class="tag off">Inativo</span>'}</td>
+      <td><button class="btn sec sm" data-ed="${p.id}">Editar</button></td></tr>`).join('')}</tbody></table></div></div>
+  <div class="glass card"><h3>Faixas</h3><p class="small muted" style="margin-bottom:12px">As palavras-chave ajudam o painel a reconhecer a faixa automaticamente na planilha importada (separe por vírgula).</p>
+    <div class="tbl-wrap"><table><thead><tr><th>Nome</th><th>Palavras-chave</th><th>Ordem</th><th></th></tr></thead><tbody>
+    ${S.faixas.map(f=>`<tr><td><input class="inp" data-fn="${f.id}" value="${esc(f.nome)}"></td><td><input class="inp" data-fk="${f.id}" value="${esc(f.palavras_chave)}"></td><td><input class="inp" style="max-width:80px" data-fo="${f.id}" value="${f.ordem}" type="number"></td><td><button class="btn sec sm" data-fs="${f.id}">Salvar</button></td></tr>`).join('')}
+    <tr><td><input class="inp" id="nfNome" placeholder="Nova faixa"></td><td><input class="inp" id="nfKw" placeholder="palavras-chave"></td><td></td><td><button class="btn sm" id="nfAdd">Adicionar</button></td></tr>
+    </tbody></table></div></div>`;
+  $('#bNovoU').onclick=()=>modalUsuario();
+  document.querySelectorAll('[data-ed]').forEach(b=>b.onclick=()=>modalUsuario(S.perfis.find(p=>p.id===b.dataset.ed)));
+  document.querySelectorAll('[data-fs]').forEach(b=>b.onclick=async()=>{const id=b.dataset.fs;
+    const {error}=await sb.from('pc_faixas').update({nome:$(`[data-fn="${id}"]`).value.trim(),palavras_chave:$(`[data-fk="${id}"]`).value.trim(),ordem:+$(`[data-fo="${id}"]`).value||0}).eq('id',id);
+    if(error)return toast(error.message,1);toast('Faixa salva');await carregarBase();render()});
+  $('#nfAdd').onclick=async()=>{const nome=$('#nfNome').value.trim();if(!nome)return;
+    const id=norm(nome).replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'')||('f'+Date.now());
+    const {error}=await sb.from('pc_faixas').insert({id,nome,palavras_chave:$('#nfKw').value.trim(),ordem:S.faixas.length+1});
+    if(error)return toast(error.message,1);toast('Faixa criada');await carregarBase();render()};
+}
+async function chamarAdmin(body){
+  const {data,error}=await sb.functions.invoke('admin-usuarios',{body});
+  if(error){let m=error.message;try{const j=await error.context.json();m=j.erro||m}catch{}throw new Error(m)}
+  if(data?.erro)throw new Error(data.erro);return data;
+}
+function gerarSenha(){const a='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';const r=crypto.getRandomValues(new Uint32Array(10));return 'Cob-'+[...r].map(x=>a[x%a.length]).join('')}
+function modalUsuario(p){
+  const novo=!p;const minhas=p?S.opf.filter(o=>o.user_id===p.id).map(o=>o.faixa_id):[];
+  abrirModal(`<h3>${novo?'Novo usuário':'Editar '+esc(p.nome)}</h3>
+   <form id="fU" class="form-g">
+    <div class="field full"><label>Nome</label><input class="inp" id="uNome" required value="${esc(p?.nome||'')}"></div>
+    <div class="field full"><label>E-mail (é o login)</label><input class="inp" id="uEmail" type="email" ${novo?'required':'disabled'} value="${esc(p?.email||'')}"></div>
+    ${novo?`<div class="field full"><label>Senha provisória</label><div style="display:flex;gap:8px"><input class="inp" id="uSenha" required minlength="8" value="${gerarSenha()}"><button type="button" class="btn sec" id="uGer">Gerar</button></div></div>`:''}
+    <div class="field"><label>Nível de acesso</label><select class="inp" id="uPapel">${[['operador','Operador'],['supervisao','Supervisão'],['admin','Administrador']].map(([k,t])=>`<option value="${k}" ${p?.papel===k?'selected':''}>${t}</option>`).join('')}</select></div>
+    ${novo?'':`<div class="field"><label>Situação</label><select class="inp" id="uAtivo"><option value="1" ${p.ativo?'selected':''}>Ativo</option><option value="0" ${p.ativo?'':'selected'}>Inativo (sem acesso)</option></select></div>`}
+    <div class="field full"><label>Faixas em que trabalha</label><div class="chips">${S.faixas.map(f=>`<label class="chip ${minhas.includes(f.id)?'on':''}"><input type="checkbox" value="${f.id}" ${minhas.includes(f.id)?'checked':''}>${esc(f.nome)}</label>`).join('')}</div></div>
+    <div id="uMsg" class="full"></div>
+    <div class="full actions" style="margin:0;justify-content:space-between">
+      <div style="display:flex;gap:8px">${novo?'':'<button type="button" class="btn sec" id="uReset">Redefinir senha</button><button type="button" class="btn danger" id="uDel">Excluir</button>'}</div>
+      <div style="display:flex;gap:8px"><button type="button" class="btn sec" onclick="fecharModal()">Cancelar</button><button class="btn" id="uSalvar">${novo?'Criar usuário':'Salvar'}</button></div>
+    </div>
+   </form>`,()=>{
+    document.querySelectorAll('.chip input').forEach(c=>c.onchange=()=>c.parentElement.classList.toggle('on',c.checked));
+    const g=$('#uGer');if(g)g.onclick=()=>$('#uSenha').value=gerarSenha();
+    const faixas=()=>[...document.querySelectorAll('.chip input:checked')].map(c=>c.value);
+    $('#fU').onsubmit=async e=>{e.preventDefault();const b=$('#uSalvar');b.disabled=true;
+      try{
+        if(novo){const senha=$('#uSenha').value;await chamarAdmin({acao:'criar',nome:$('#uNome').value,email:$('#uEmail').value,senha,papel:$('#uPapel').value,faixas:faixas()});
+          await carregarBase();render();
+          abrirModal(`<h3>Usuário criado ✓</h3><p>Passe estes dados para <b>${esc($('#uNome')?.value||'')}</b>:</p>
+            <div class="glass" style="padding:16px;margin:14px 0;box-shadow:none"><div><span class="muted small">Endereço</span><br><b>${esc(location.href.split('#')[0])}</b></div><div style="margin-top:8px"><span class="muted small">E-mail</span><br><b>${esc(document.getElementById('uEmail')?.value||'')}</b></div><div style="margin-top:8px"><span class="muted small">Senha provisória</span><br><b>${esc(senha)}</b></div></div>
+            <p class="small muted">Peça para a pessoa trocar a senha no primeiro acesso, em "Trocar senha".</p><div class="actions"><button class="btn" onclick="fecharModal()">Fechar</button></div>`);
+          return;
+        }
+        await chamarAdmin({acao:'atualizar',id:p.id,nome:$('#uNome').value,papel:$('#uPapel').value,ativo:$('#uAtivo').value==='1',faixas:faixas()});
+        fecharModal();toast('Usuário atualizado');await carregarBase();render();
+      }catch(err){$('#uMsg').innerHTML=`<div class="err">${esc(err.message)}</div>`;b.disabled=false}
+    };
+    const rs=$('#uReset');if(rs)rs.onclick=async()=>{const s=gerarSenha();if(!confirmar(`Redefinir a senha de ${p.nome}? A nova senha provisória será: ${s}`))return;
+      try{await chamarAdmin({acao:'senha',id:p.id,senha:s});$('#uMsg').innerHTML=`<div class="ok">Nova senha de ${esc(p.nome)}: <b>${esc(s)}</b> (anote e passe para a pessoa)</div>`}catch(err){$('#uMsg').innerHTML=`<div class="err">${esc(err.message)}</div>`}};
+    const dl=$('#uDel');if(dl)dl.onclick=async()=>{if(!confirmar(`Excluir ${p.nome} de vez? Os recebimentos e metas dessa pessoa também serão apagados. Se quiser só tirar o acesso, use "Inativo".`))return;
+      try{await chamarAdmin({acao:'excluir',id:p.id});fecharModal();toast('Usuário excluído');await carregarBase();await carregarMes();render()}catch(err){$('#uMsg').innerHTML=`<div class="err">${esc(err.message)}</div>`}};
+  });
+}
+function modalSenhaPropria(){
+  abrirModal(`<h3>Trocar minha senha</h3><form id="fS" class="form-g">
+    <div class="field full"><label>Nova senha (mínimo 8 caracteres)</label><input class="inp" type="password" id="s1" minlength="8" required autocomplete="new-password"></div>
+    <div class="field full"><label>Repita a nova senha</label><input class="inp" type="password" id="s2" minlength="8" required autocomplete="new-password"></div>
+    <div id="sMsg" class="full"></div>
+    <div class="full actions" style="margin:0"><button type="button" class="btn sec" onclick="fecharModal()">Cancelar</button><button class="btn">Salvar</button></div></form>`,()=>{
+    $('#fS').onsubmit=async e=>{e.preventDefault();if($('#s1').value!==$('#s2').value){$('#sMsg').innerHTML='<div class="err">As senhas não são iguais.</div>';return}
+      const {error}=await sb.auth.updateUser({password:$('#s1').value});
+      if(error){$('#sMsg').innerHTML=`<div class="err">${esc(/same/i.test(error.message)?'A nova senha precisa ser diferente da atual.':error.message)}</div>`;return}
+      fecharModal();toast('Senha alterada')};
+  });
+}
+
+/* ================== START ================== */
+sb.auth.onAuthStateChange(ev=>{if(ev==='SIGNED_OUT'){$('#app').classList.add('hide');$('#login').classList.remove('hide')}});
+iniciar();
+</script>
+</body>
+</html>
